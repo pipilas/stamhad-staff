@@ -1,0 +1,10 @@
+#!/bin/bash
+# Give the app to the person who installed it (the installer makes it root's),
+# so Stamhad Staff can update itself later without a password.
+APP="/Applications/Stamhad Staff.app"
+U=$(stat -f %Su /dev/console 2>/dev/null)
+if [ -n "$U" ] && [ "$U" != "root" ] && [ -d "$APP" ]; then
+  chown -R "$U":staff "$APP"
+fi
+xattr -dr com.apple.quarantine "$APP" 2>/dev/null
+exit 0

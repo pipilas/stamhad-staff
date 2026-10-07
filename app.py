@@ -511,7 +511,8 @@ def selftest() -> int:
         r.update()
         r.destroy()
         assert VERSION and VERSION != "0.1.0", "version.txt missing from the build"
-        out.write_text(f"OK {VERSION}\n")
+        kind, target, problem = updater.install_target()
+        out.write_text(f"OK {VERSION}\nkind={kind}\ntarget={target}\nproblem={problem}\n")
         return 0
     except Exception:
         out.write_text("FAIL\n" + traceback.format_exc())

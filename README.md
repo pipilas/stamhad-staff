@@ -4,8 +4,16 @@ Employees, weekly schedule, hours and tips. There is no payroll or wage calculat
 
 ## Download
 Get the latest version from **[Releases](https://github.com/pipilas/stamhad-staff/releases/latest)**:
-- **Windows:** `StamhadStaff.exe`. Put it anywhere you like (e.g. Desktop or Documents) and double-click it. If SmartScreen warns, click *More info → Run anyway*.
-- **Mac (Apple Silicon):** `StamhadStaff-<version>-mac.dmg`. Open it, drag **Stamhad Staff** into **Applications**, and open it from there. The first time, macOS may block it: *System Settings → Privacy & Security → Open Anyway*.
+
+| | File | What it does |
+|---|---|---|
+| **Windows** | `StamhadStaff-Setup.exe` | Installer: program folder in `%LOCALAPPDATA%\Programs\Stamhad Staff`, Start menu, optional desktop shortcut, uninstaller. No admin needed. |
+| Windows | `StamhadStaff-<v>-portable.exe` | Single file, no install. |
+| **Mac** (M1+) | `StamhadStaff-<v>-mac.pkg` | Installer: puts the app in Applications. |
+| Mac | `StamhadStaff-<v>-mac.dmg` | Drag to Applications. |
+
+Unsigned app: on Windows SmartScreen → *More info → Run anyway*; on Mac → *System Settings → Privacy & Security → Open Anyway*.
+Direct link to the newest Windows installer: `https://github.com/pipilas/stamhad-staff/releases/latest/download/StamhadStaff-Setup.exe`
 
 Your data is kept in its own folder (Mac: `~/Library/Application Support/StamhadStaff`, Windows: `%APPDATA%\StamhadStaff`), so it survives updates and reinstalls.
 
@@ -26,8 +34,8 @@ Settings → Data:
 
 ## Releasing a new version (developer)
 1. Bump `version.txt` and add a `## <version>` section to `CHANGELOG.md` (that text becomes the update notes).
-2. Commit, then `git tag v<version> && git push origin main --tags`.
-3. GitHub Actions builds `StamhadStaff.exe` and the `.dmg`, checks that both start, and publishes the release with `SHA256SUMS.txt`. Running apps will offer the update.
+2. Double-click `publish_to_github.command`. It pushes the code and waits while GitHub Actions builds and **tests** both installers (installs them, runs them, updates over them, uninstalls). Only if everything passes does it tag the version.
+3. The tag publishes the release (Setup.exe, portable .exe, .pkg, .dmg, `SHA256SUMS.txt`). Running apps will offer the update.
 
 ## Run from source
 ```

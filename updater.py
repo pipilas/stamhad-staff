@@ -78,9 +78,7 @@ def check(current: str) -> dict:
         raise ConnectionError(f"Can't reach GitHub ({e})") from e
     ver = str(rel.get("tag_name", "")).lstrip("vV")
     assets = rel.get("assets") or []
-    want = (lambda n: n.lower().endswith(".dmg")) if IS_MAC else (lambda n: n.lower().endswith(".exe"))
-    cands = [a for a in assets if want(a.get("name", ""))]
-    asset = next((a for a in cands if ver and ver in a.get("name", "")), None) or (cands[0] if cands else None)
+    asset = pick_asset(assets, ver, install_target()[0])
     info = {"available": False, "version": ver, "notes": (rel.get("body") or "").strip(),
             "page": rel.get("html_url") or RELEASES_PAGE, "url": "", "size": 0, "sha256": "", "name": ""}
     if not asset:
@@ -101,6 +99,19 @@ def check(current: str) -> dict:
             pass
     info["available"] = is_newer(ver, current)
     return info
+
+
+def pick_asset(assets, ver, kind):
+    """Which release file this copy of the app needs.
+    mac -> the .dmg   ·   win-installed -> StamhadStaff-Setup.exe   ·   win (portable) -> the portable .exe"""
+    def named(pred):
+        c = [a for a in assets if pred(a.get("name", "").lower())]
+        return next((a for a in c if ver and ver in a.get("name", "")), None) or (c[0] if c else None)
+    if IS_MAC:
+        return named(lambda n: n.endswith(".dmg"))
+    if kind == "win-installed":
+        return named(lambda n: n.endswith(".exe") and "setup" in n)
+    return named(lambda n: n.endswith(".exe") and "setup" not in n)
 
 
 def download(info: dict, progress=None, tries=3) -> Path:
@@ -150,6 +161,8 @@ def install_target() -> tuple[str, Path | None, str]:
         return "source", None, "You're running the app from its Python files, not the installed app."
     if IS_WIN:
         exe = Path(sys.executable).resolve()
+        if (exe.parent / "unins000.exe").exists():           # installed with StamhadStaff-Setup.exe
+            return "win-installed", exe, ""
         return "win", exe, ("" if _writable(exe.parent) else f"Can't write to {exe.parent}")
     if IS_MAC:
         app = Path(sys.executable).resolve().parents[2]          # X.app/Contents/MacOS/X
@@ -203,7 +216,9 @@ def prepare_and_launch(pkg: Path, root: Path, version: str, status=None) -> None
     log_file.parent.mkdir(exist_ok=True)
     result_file.write_text(json.dumps({"to": version, "status": "started",
                                        "at": datetime.now().isoformat(timespec="seconds")}))
-    if kind == "win":
+    if kind == "win-installed":
+        _launch_windows_setup(pkg, target, result_file, log_file, version)
+    elif kind == "win":
         _launch_windows(pkg, target, result_file, log_file, version)
     else:
         _launch_mac(pkg, target, result_file, log_file, version, status)
@@ -248,6 +263,42 @@ Start-Sleep -Seconds 2
 try {{ Remove-Item $new -Force }} catch {{}}
 """, encoding="utf-8-sig")      # BOM: PowerShell 5 reads non-English paths correctly
     flags = 0x00000008 | 0x00000200 | 0x08000000   # DETACHED | NEW_PROCESS_GROUP | NO_WINDOW
+    subprocess.Popen(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden",
+                      "-File", str(ps)], creationflags=flags, close_fds=True)
+
+
+def _launch_windows_setup(setup: Path, exe: Path, result: Path, logf: Path, version: str):
+    """Installed copy: run the new StamhadStaff-Setup.exe silently once the app has closed.
+    Inno Setup undoes its own changes if it fails, so the old version stays usable."""
+    pids = [os.getpid()]
+    try:
+        pids.append(os.getppid())
+    except Exception:
+        pass
+    ps = Path(tempfile.gettempdir()) / "StamhadStaffUpdate" / "install-update.ps1"
+    setup_log = logf.parent / "setup.log"
+
+    def q(p):
+        return "'" + str(p).replace("'", "''") + "'"
+    ps.write_text(f"""
+$ErrorActionPreference = 'Stop'
+$exe = {q(exe)}; $setup = {q(setup)}; $log = {q(logf)}; $res = {q(result)}; $slog = {q(setup_log)}
+function Write-UpdLog($m) {{ try {{ Add-Content -Path $log -Encoding UTF8 -Value ((Get-Date -Format s) + '  ' + $m) }} catch {{}} }}
+function Set-UpdResult($s, $m) {{ Set-Content -Path $res -Encoding UTF8 -Value ('{{"to": "{version}", "status": "' + $s + '", "detail": "' + ($m -replace '"', "'") + '"}}') }}
+Write-UpdLog 'update to {version} (installer): waiting for the app to close'
+foreach ($p in @({",".join(str(p) for p in pids)})) {{ try {{ Wait-Process -Id $p -Timeout 90 -ErrorAction SilentlyContinue }} catch {{}} }}
+Start-Sleep -Milliseconds 800
+try {{
+  $p = Start-Process -FilePath $setup -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CLOSEAPPLICATIONS', ('/LOG="' + $slog + '"')) -Wait -PassThru
+  $code = $p.ExitCode
+}} catch {{ $code = -1; Write-UpdLog ('could not start the installer: ' + $_) }}
+if ($code -eq 0) {{ Write-UpdLog 'installed, starting new version'; Set-UpdResult 'ok' '' }}
+else {{ Write-UpdLog ('installer failed with code ' + $code + ' (see setup.log)'); Set-UpdResult 'failed' ('The installer stopped (code ' + $code + '). Details in logs/setup.log.') }}
+Start-Process $exe
+Start-Sleep -Seconds 2
+try {{ Remove-Item $setup -Force }} catch {{}}
+""", encoding="utf-8-sig")
+    flags = 0x00000008 | 0x00000200 | 0x08000000
     subprocess.Popen(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden",
                       "-File", str(ps)], creationflags=flags, close_fds=True)
 
@@ -319,7 +370,7 @@ fi
 def startup_cleanup(root: Path) -> dict | None:
     """Remove leftovers; return the result of the last update (once), if any."""
     kind, target, _ = install_target()
-    if kind == "win" and target:
+    if kind in ("win", "win-installed") and target:
         old = Path(str(target) + ".old")
         try:
             if old.exists():

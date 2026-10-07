@@ -1,6 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 """PyInstaller build for Stamhad Staff.
-Windows -> dist/StamhadStaff.exe (one file)
+Windows -> dist/StamhadStaff.exe (one file, portable)
+           set STAMHAD_ONEDIR=1 -> dist/StamhadStaff/ (program folder, used by the installer)
 macOS   -> dist/Stamhad Staff.app
 Build:  pyinstaller stamhad_staff.spec --clean --noconfirm
 """
@@ -40,7 +41,19 @@ a = Analysis(
 )
 pyz = PYZ(a.pure)
 
-if sys.platform == "win32":
+ONEDIR = os.environ.get("STAMHAD_ONEDIR") == "1"
+
+if sys.platform == "win32" and ONEDIR:
+    exe = EXE(
+        pyz, a.scripts, [],
+        exclude_binaries=True,
+        name="StamhadStaff",
+        console=False,
+        upx=False,
+        icon=os.path.join(SPEC_DIR, "icons", "icon.ico"),
+    )
+    coll = COLLECT(exe, a.binaries, a.datas, upx=False, name="StamhadStaff")
+elif sys.platform == "win32":
     exe = EXE(
         pyz, a.scripts, a.binaries, a.datas, [],
         name="StamhadStaff",

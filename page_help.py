@@ -32,15 +32,20 @@ Everything is saved automatically the moment you change it. There's no Save butt
 """),
     ("install", "\U0001F4BB", "Install the app", """
 Download the latest version from GitHub: **github.com/pipilas/stamhad-staff → Releases**.
-## Windows
-1. Download **StamhadStaff.exe**.
-2. Put it somewhere you can find it, like Desktop or Documents (not Downloads, which gets cleaned up).
-3. Double-click it. If Windows SmartScreen warns you, click **More info → Run anyway**. This happens because the app isn't signed by Microsoft.
-## Mac (Apple Silicon: M1 or newer)
-1. Download **StamhadStaff-<version>-mac.dmg** and open it.
-2. Drag **Stamhad Staff** into the **Applications** folder.
-3. Open it from Applications. The first time, macOS may block it. Go to **System Settings → Privacy & Security → Open Anyway**.
-! Always open the app from **Applications**, not from the disk image or Downloads. Otherwise updates can't replace it.
+## Windows: installer (recommended)
+1. Download **StamhadStaff-Setup.exe** and double-click it. If SmartScreen warns, click **More info → Run anyway** (the app isn't signed by Microsoft).
+2. Click through the steps. You can tick **Create a desktop shortcut**.
+3. It installs into your user's programs folder (%LOCALAPPDATA%\\Programs\\Stamhad Staff). No administrator password is needed, so updates can install themselves too.
+4. Open it from the **Start menu** or the desktop shortcut. To remove it: **Settings → Apps → Stamhad Staff → Uninstall**. Your data is kept.
+## Windows: without installing
+**StamhadStaff-<version>-portable.exe** is one file you can run from anywhere, like a USB stick. Keep it out of Downloads.
+## Mac: installer (M1 or newer)
+1. Download **StamhadStaff-<version>-mac.pkg**.
+2. Double-click it. If macOS blocks it: **System Settings → Privacy & Security → Open Anyway**, then open it again.
+3. Click through the steps (it asks for your Mac password). The app goes into **Applications**.
+## Mac: disk image
+Or download the **.dmg**, open it, and drag **Stamhad Staff** into **Applications**.
+! Always open the app from **Applications** (Mac) or the **Start menu** (Windows), not from the download, so updates can replace it.
 ## Where is my data?
 Your data is in its own folder, separate from the app, so updating or reinstalling never touches it:
 - Mac: ~/Library/Application Support/StamhadStaff
@@ -171,8 +176,8 @@ Unzip the newest **before-receive-….zip** from the backups folder into the dat
     ("dev", "\U0001F527", "New version (developer)", """
 1. Change **version.txt** (e.g. 0.7.1).
 2. Add a **## 0.7.1** section to **CHANGELOG.md**. That text is what people see in the update window.
-3. Double-click **publish_to_github.command**. It uploads the code and tags the version.
-4. GitHub builds **StamhadStaff.exe** and the **.dmg**, checks both start, and publishes the release (about 10 minutes). Running apps will offer the update.
+3. Double-click **publish_to_github.command**. It uploads the code and waits while GitHub builds and **tests** the installers (about 10 minutes).
+4. Only if every test passes does it publish the release: Setup.exe, portable .exe, Mac .pkg and .dmg. Running apps will offer the update.
 ! Private files (CSV exports, keys, preset.json, .stamhad files) are blocked from being uploaded.
 """),
 ]

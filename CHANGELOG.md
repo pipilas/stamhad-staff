@@ -3,6 +3,11 @@
 The release notes shown in the app's update window come from this file:
 the section whose heading matches the version being released.
 
+## 0.7.1
+- Installers: StamhadStaff-Setup.exe for Windows (Start menu, desktop shortcut, uninstaller) and a .pkg installer for Mac
+- Updates work for installed copies too (the new installer runs by itself in the background)
+- Help page: install instructions for the new installers
+
 ## 0.7.0
 - Now available as a Windows app (.exe) and a Mac app (.dmg)
 - Updates: the app checks for a new version when it opens and asks before updating. Your data is backed up first, and if anything goes wrong the old version stays

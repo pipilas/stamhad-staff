@@ -1,11 +1,18 @@
 name: Build & Release
 
-# Push a tag like v0.7.0 (must match version.txt) -> builds the Windows .exe and
-# the Mac .dmg, tests that both start, and publishes them as a GitHub Release.
-# The app's "Check for updates" reads that release.
+# Every push to main: build + test everything (nothing is published).
+# Push a tag like v0.7.1 (must match version.txt): build, test and publish a Release.
+#
+# Release files:
+#   StamhadStaff-Setup.exe            Windows installer (program folder + shortcuts + uninstaller)
+#   StamhadStaff-<v>-portable.exe     Windows single file, no install
+#   StamhadStaff-<v>-mac.pkg          Mac installer (puts the app in Applications)
+#   StamhadStaff-<v>-mac.dmg          Mac disk image (drag to Applications; also used by in-app updates)
+#   SHA256SUMS.txt
 
 on:
   push:
+    branches: [main]
     tags: ["v*"]
   workflow_dispatch:
 
@@ -35,27 +42,72 @@ jobs:
   windows:
     needs: check
     runs-on: windows-latest
+    env:
+      V: ${{ needs.check.outputs.version }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
       - name: Install
         run: python -m pip install --upgrade pip pyinstaller -r requirements.txt
-      - name: Build
-        run: pyinstaller stamhad_staff.spec --clean --noconfirm
-      - name: Self-test the built app
+      - name: Build portable .exe
         shell: pwsh
         run: |
-          $p = Start-Process -FilePath dist\StamhadStaff.exe -ArgumentList '--selftest' -PassThru
+          pyinstaller stamhad_staff.spec --clean --noconfirm
+          New-Item -ItemType Directory -Force out | Out-Null
+          Move-Item dist\StamhadStaff.exe "out\StamhadStaff-$env:V-portable.exe"
+      - name: Build program folder
+        shell: pwsh
+        run: |
+          $env:STAMHAD_ONEDIR = "1"
+          pyinstaller stamhad_staff.spec --clean --noconfirm
+          if (-not (Test-Path dist\StamhadStaff\StamhadStaff.exe)) { throw "program folder missing" }
+      - name: Self-test (portable)
+        shell: pwsh
+        run: |
+          $p = Start-Process -FilePath "out\StamhadStaff-$env:V-portable.exe" -ArgumentList '--selftest' -PassThru
           if (-not $p.WaitForExit(180000)) { $p.Kill(); throw "self-test hung" }
           Get-Content "$HOME\stamhad-staff-selftest.txt"
           if ($p.ExitCode -ne 0) { throw "self-test failed" }
+      - name: Build installer
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVer=$env:V" installer\windows.iss
+          if (-not (Test-Path out\StamhadStaff-Setup.exe)) { throw "installer missing" }
+      - name: Test the installer (install, run, update over itself, uninstall)
+        shell: pwsh
+        run: |
+          function Run-Setup($exe, $log) {
+            $p = Start-Process -FilePath $exe -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',"/LOG=$log") -Wait -PassThru
+            if ($p.ExitCode -ne 0) { Get-Content $log -Tail 30; throw "setup exit code $($p.ExitCode)" }
+          }
+          Run-Setup out\StamhadStaff-Setup.exe "$PWD\setup1.log"
+          $dir = "$env:LOCALAPPDATA\Programs\Stamhad Staff"
+          if (-not (Test-Path "$dir\StamhadStaff.exe")) { throw "not installed" }
+          if (-not (Test-Path "$dir\unins000.exe")) { throw "no uninstaller" }
+          $p = Start-Process -FilePath "$dir\StamhadStaff.exe" -ArgumentList '--selftest' -PassThru
+          if (-not $p.WaitForExit(180000)) { $p.Kill(); throw "installed app hung" }
+          $t = Get-Content "$HOME\stamhad-staff-selftest.txt" -Raw; $t
+          if ($p.ExitCode -ne 0) { throw "installed app self-test failed" }
+          if ($t -notmatch 'kind=win-installed') { throw "installed app doesn't know it's installed" }
+          Run-Setup out\StamhadStaff-Setup.exe "$PWD\setup2.log"      # same as an in-app update
+          $p = Start-Process -FilePath "$dir\unins000.exe" -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART') -Wait -PassThru
+          Start-Sleep -Seconds 3
+          if (Test-Path "$dir\StamhadStaff.exe") { throw "uninstall left the app behind" }
+          "installer OK"
       - uses: actions/upload-artifact@v4
-        with: { name: windows, path: dist/StamhadStaff.exe }
+        with:
+          name: windows
+          path: |
+            out/StamhadStaff-Setup.exe
+            out/StamhadStaff-*-portable.exe
 
   mac:
     needs: check
     runs-on: macos-latest
+    env:
+      V: ${{ needs.check.outputs.version }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -77,14 +129,38 @@ jobs:
           cat ~/stamhad-staff-selftest.txt; exit $rc
       - name: Make the .dmg
         run: |
-          V=${{ needs.check.outputs.version }}
-          mkdir dmg && cp -R "dist/Stamhad Staff.app" dmg/ && ln -s /Applications dmg/Applications
-          hdiutil create -volname "Stamhad Staff" -srcfolder dmg -ov -format UDZO "StamhadStaff-$V-mac.dmg"
-          hdiutil verify "StamhadStaff-$V-mac.dmg"
+          mkdir -p out dmg && cp -R "dist/Stamhad Staff.app" dmg/ && ln -s /Applications dmg/Applications
+          hdiutil create -volname "Stamhad Staff" -srcfolder dmg -ov -format UDZO "out/StamhadStaff-$V-mac.dmg"
+          hdiutil verify "out/StamhadStaff-$V-mac.dmg"
+      - name: Make the .pkg installer
+        run: |
+          mkdir -p pkgroot && cp -R "dist/Stamhad Staff.app" pkgroot/
+          pkgbuild --analyze --root pkgroot comp.plist
+          /usr/libexec/PlistBuddy -c "Set :0:BundleIsRelocatable false" comp.plist
+          pkgbuild --root pkgroot --component-plist comp.plist --identifier com.stamhad.staff \
+                   --version "$V" --install-location /Applications --scripts installer/mac_scripts app.pkg
+          productbuild --package app.pkg "out/StamhadStaff-$V-mac.pkg"
+          pkgutil --payload-files "out/StamhadStaff-$V-mac.pkg" | head -5
+      - name: Test the .pkg (install, owner, run)
+        run: |
+          sudo installer -pkg "out/StamhadStaff-$V-mac.pkg" -target /
+          APP="/Applications/Stamhad Staff.app"
+          test -d "$APP" || { echo "not installed"; exit 1; }
+          ls -ld "$APP"; owner=$(stat -f %Su "$APP"); echo "owner=$owner console=$(stat -f %Su /dev/console)"
+          if [ "$owner" = "root" ]; then echo "::warning::app is owned by root (no console user on this runner?)"; fi
+          "$APP/Contents/MacOS/StamhadStaff" --selftest & pid=$!
+          for i in $(seq 1 120); do kill -0 $pid 2>/dev/null || break; sleep 1; done
+          if kill -0 $pid 2>/dev/null; then kill $pid; echo "hung"; exit 1; fi
+          wait $pid; rc=$?; cat ~/stamhad-staff-selftest.txt; exit $rc
       - uses: actions/upload-artifact@v4
-        with: { name: mac, path: "StamhadStaff-*-mac.dmg" }
+        with:
+          name: mac
+          path: |
+            out/StamhadStaff-*-mac.dmg
+            out/StamhadStaff-*-mac.pkg
 
   release:
+    if: startsWith(github.ref, 'refs/tags/v')
     needs: [check, windows, mac]
     runs-on: ubuntu-latest
     steps:
@@ -92,7 +168,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with: { path: out, merge-multiple: true }
       - name: Checksums
-        run: cd out && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
+        run: cd out && ls -la && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
       - name: Release notes
         run: |
           V=${{ needs.check.outputs.version }}
@@ -101,7 +177,13 @@ jobs:
           v = sys.argv[1]
           text = open("CHANGELOG.md", encoding="utf-8").read()
           m = re.search(r"^## " + re.escape(v) + r"\b.*?\n(.*?)(?=^## |\Z)", text, re.S | re.M)
-          open("notes.md", "w", encoding="utf-8").write((m.group(1).strip() if m else "Bug fixes and improvements."))
+          notes = m.group(1).strip() if m else "Bug fixes and improvements."
+          notes += ("\n\n### Which file do I download?\n"
+                    "- **Windows:** `StamhadStaff-Setup.exe` (installs it with a Start menu entry). "
+                    "No-install version: `StamhadStaff-" + v + "-portable.exe`.\n"
+                    "- **Mac (M1 or newer):** `StamhadStaff-" + v + "-mac.pkg` (installer) or the `.dmg` (drag to Applications).\n"
+                    "\nAlready have it? The app offers this update when it opens.")
+          open("notes.md", "w", encoding="utf-8").write(notes)
           PY
           cat notes.md
       - uses: softprops/action-gh-release@v2
@@ -110,6 +192,8 @@ jobs:
           name: Stamhad Staff ${{ needs.check.outputs.version }}
           body_path: notes.md
           files: |
-            out/StamhadStaff.exe
+            out/StamhadStaff-Setup.exe
+            out/StamhadStaff-*-portable.exe
             out/StamhadStaff-*-mac.dmg
+            out/StamhadStaff-*-mac.pkg
             out/SHA256SUMS.txt
