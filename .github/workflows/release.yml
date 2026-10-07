@@ -1,0 +1,115 @@
+name: Build & Release
+
+# Push a tag like v0.7.0 (must match version.txt) -> builds the Windows .exe and
+# the Mac .dmg, tests that both start, and publishes them as a GitHub Release.
+# The app's "Check for updates" reads that release.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: v
+        name: Tag must match version.txt
+        run: |
+          V=$(tr -d '[:space:]' < version.txt)
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          if [ "${GITHUB_REF_TYPE}" = "tag" ] && [ "${GITHUB_REF_NAME}" != "v$V" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} doesn't match version.txt ($V)"; exit 1
+          fi
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Tip maths tests
+        run: python test_core.py
+
+  windows:
+    needs: check
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Install
+        run: python -m pip install --upgrade pip pyinstaller -r requirements.txt
+      - name: Build
+        run: pyinstaller stamhad_staff.spec --clean --noconfirm
+      - name: Self-test the built app
+        shell: pwsh
+        run: |
+          $p = Start-Process -FilePath dist\StamhadStaff.exe -ArgumentList '--selftest' -PassThru
+          if (-not $p.WaitForExit(180000)) { $p.Kill(); throw "self-test hung" }
+          Get-Content "$HOME\stamhad-staff-selftest.txt"
+          if ($p.ExitCode -ne 0) { throw "self-test failed" }
+      - uses: actions/upload-artifact@v4
+        with: { name: windows, path: dist/StamhadStaff.exe }
+
+  mac:
+    needs: check
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Install
+        run: python -m pip install --upgrade pip pyinstaller -r requirements.txt
+      - name: Build
+        run: pyinstaller stamhad_staff.spec --clean --noconfirm
+      - name: Sign (ad-hoc) so macOS doesn't call it damaged
+        run: |
+          codesign --force --deep --sign - "dist/Stamhad Staff.app"
+          codesign --verify --deep --strict --verbose=1 "dist/Stamhad Staff.app"
+      - name: Self-test the built app
+        run: |
+          "dist/Stamhad Staff.app/Contents/MacOS/StamhadStaff" --selftest & pid=$!
+          for i in $(seq 1 120); do kill -0 $pid 2>/dev/null || break; sleep 1; done
+          if kill -0 $pid 2>/dev/null; then kill $pid; echo "self-test hung"; exit 1; fi
+          wait $pid; rc=$?
+          cat ~/stamhad-staff-selftest.txt; exit $rc
+      - name: Make the .dmg
+        run: |
+          V=${{ needs.check.outputs.version }}
+          mkdir dmg && cp -R "dist/Stamhad Staff.app" dmg/ && ln -s /Applications dmg/Applications
+          hdiutil create -volname "Stamhad Staff" -srcfolder dmg -ov -format UDZO "StamhadStaff-$V-mac.dmg"
+          hdiutil verify "StamhadStaff-$V-mac.dmg"
+      - uses: actions/upload-artifact@v4
+        with: { name: mac, path: "StamhadStaff-*-mac.dmg" }
+
+  release:
+    needs: [check, windows, mac]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { path: out, merge-multiple: true }
+      - name: Checksums
+        run: cd out && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
+      - name: Release notes
+        run: |
+          V=${{ needs.check.outputs.version }}
+          python3 - "$V" <<'PY'
+          import re, sys
+          v = sys.argv[1]
+          text = open("CHANGELOG.md", encoding="utf-8").read()
+          m = re.search(r"^## " + re.escape(v) + r"\b.*?\n(.*?)(?=^## |\Z)", text, re.S | re.M)
+          open("notes.md", "w", encoding="utf-8").write((m.group(1).strip() if m else "Bug fixes and improvements."))
+          PY
+          cat notes.md
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.check.outputs.version }}
+          name: Stamhad Staff ${{ needs.check.outputs.version }}
+          body_path: notes.md
+          files: |
+            out/StamhadStaff.exe
+            out/StamhadStaff-*-mac.dmg
+            out/SHA256SUMS.txt

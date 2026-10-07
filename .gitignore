@@ -1,0 +1,19 @@
+# build output
+build/
+dist/
+dmg/
+*.spec.bak
+__pycache__/
+*.pyc
+.DS_Store
+
+# never commit restaurant data or keys
+preset.json
+*.csv
+*.stamhad
+*.pem
+*_rsa_key*
+*.stamhadtoast
+keys/
+backups/
+logs/

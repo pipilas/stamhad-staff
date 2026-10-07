@@ -1,0 +1,5 @@
+# Needed for "Download from Toast", PDF export and safe update downloads.
+# The app itself runs on plain Python 3 + Tkinter.
+paramiko>=3.0
+reportlab>=4.0
+certifi
