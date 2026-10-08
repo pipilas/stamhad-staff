@@ -15,6 +15,7 @@ from ui import *  # noqa: F401,F403
 
 TOPICS = [
     ("start", "\U0001F44B", "Getting started", """
+A new install starts **empty**. A welcome screen asks how tips are split and how to bring in your employees (Toast export, Stamhad Payroll, a file from another computer, or by hand).
 Stamhad Staff keeps your **employees**, the **weekly schedule**, **hours & tips** and **inventory**. There's no payroll: at the end of the week it gives you **hours worked** and **total tips** for each person.
 Everything is saved automatically the moment you change it. There's no Save button except in Settings.
 ## The sidebar
@@ -82,16 +83,22 @@ Type **Floor tips** and **Bar tips** for the shift. The payout list updates as y
 ! The yellow bar "Scheduled but not here" lists people on the schedule with no hours. Click **Add them** if they worked.
 """),
     ("tips", "\U0001F4B5", "How tips are split", """
-## The rule
-Each person's share = **tip hours × position points**. The pool is divided in proportion to those shares.
-## Tip hours
+## Two ways, you choose
+Pick one in **Settings → Tips & shifts → How are tips split?** It applies to every day.
+- **By points only** (new installs start here): each person's share = their **position points**. Everyone on the shift gets their full points, however long they stayed.
+- **By time worked × points**: share = **tip hours × points**, so who came earlier or stayed longer gets more.
+## Example: points only
+Floor tips $336. Two servers (9), one busser (6), two bartenders (9) = 42 points.
+- $336 ÷ 42 = $8 per point
+- Each server and bartender gets 9 × $8 = **$72**, and the busser 6 × $8 = **$48**, even if one server worked 7 hours and the other 2½.
+## Tip hours (only when splitting by time)
 - **Dinner**: the tip clock **starts at 4:05 PM** and **stops at 11:00 PM**.
   - Clock in before 4:05 → counts from 4:05 (a few minutes of space, so 3:55 and 4:01 are treated the same).
   - Still working after 11 PM → counts as 11:00, so everyone who stays gets the full share.
-- **Morning / Brunch**: every hour counts (unless you set times in Settings).
-- Change these in **Settings → Tips & shifts** ("Starts" / "Stops").
+- **Morning / Brunch**: every hour counts (unless you set times).
+- The times are in **Settings → Tips & shifts** ("Starts" / "Stops"), shown when "By time worked" is chosen.
 ! Tip hours only affect tips. **Hours worked are never changed.**
-## Example
+## Example: by time
 Floor tips $226.86, both 9 points, both on 6.75 tip hours:
 - 6.75 × 9 = 60.75 point-hours each → 121.50 total
 - $226.86 ÷ 121.50 = $1.867 per point-hour
@@ -100,7 +107,7 @@ Floor tips $226.86, both 9 points, both on 6.75 tip hours:
 - Positions with **0 points** (kitchen, host…). They're listed under the payout as "not in the tip split".
 - People with a **fixed tip** (Details → fixed tip). Fixed tips come off the pool first.
 ## Bar tips
-Bar tips are a separate pool. The **barback's %** comes off first, and the rest is split between the **bartenders** by tip hours. Bartenders also share in floor tips by their points.
+Bar tips are a separate pool. The **barback's %** comes off first, and the rest is split between the **bartenders**: evenly with "points only", by tip hours with "by time". Bartenders also share in floor tips by their points.
 """),
     ("Week", "\U0001F4CA", "Week summary & export", """
 - **Totals**: hours and tips per person for the week. **By day**: day by day.

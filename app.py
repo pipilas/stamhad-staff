@@ -92,7 +92,7 @@ class App(tk.Tk):
 
         self.protocol("WM_DELETE_WINDOW", self._close)
         preset_applied = self._apply_preset()
-        if self.store.first_run and not preset_applied:
+        if self.store.first_run and not self.store.employees:
             self.after(300, self._offer_first_import)
         start = OLD_NAMES.get(ui_state.get("page"), ui_state.get("page"))
         self.go(start if start in PAGES else "Home")
@@ -463,15 +463,69 @@ class App(tk.Tk):
 
     # ── first run ───────────────────────────────────────────────────────────
     def _offer_first_import(self):
+        """Brand-new install: no employees yet. Ask how tips are split and how to add people."""
+        self.store.save_positions()
+        self.store.save_employees()
+        self.store.save_settings()
+        st = self.store.settings
+        d = Dialog(self, "Welcome to Stamhad Staff", width=600)
+        tk.Label(d.body, text="Welcome to Stamhad Staff \U0001F44B", bg=BG_PAGE, fg=FG,
+                 font=(FONT, 18, "bold")).pack(anchor="w")
+        tk.Label(d.body, text="Two quick choices and you're ready. You can change both later.",
+                 bg=BG_PAGE, fg=FG_SEC, font=(FONT, 11)).pack(anchor="w", pady=(2, 14))
+        tk.Label(d.body, text="1.  How are tips split?", bg=BG_PAGE, fg=FG, font=(FONT, 13, "bold")).pack(anchor="w")
+        meth = tk.StringVar(value=st.get("tip_method", "points"))
+        for val, title, sub in (
+                ("points", "By points only", "Everyone on the shift gets their position's points, however long they "
+                                             "stayed."),
+                ("time", "By time worked \u00d7 points", "Who came earlier or stayed longer gets more. The tip clock "
+                                                         "times are in Settings \u2192 Tips & shifts.")):
+            tk.Radiobutton(d.body, text=title, variable=meth, value=val, bg=BG_PAGE, font=(FONT, 12, "bold"),
+                           anchor="w").pack(anchor="w", pady=(4, 0))
+            tk.Label(d.body, text=sub, bg=BG_PAGE, fg=FG_SEC, font=(FONT, 10), wraplength=540,
+                     justify="left").pack(anchor="w", padx=(26, 0))
+        tk.Label(d.body, text="2.  Add your employees", bg=BG_PAGE, fg=FG, font=(FONT, 13, "bold")).pack(
+            anchor="w", pady=(16, 2))
+        tk.Label(d.body, text="The app starts empty. Positions come with suggested tip points "
+                              "(Server 10, Bartender 5, Busser 5\u2026). Check them in Positions.",
+                 bg=BG_PAGE, fg=FG_SEC, font=(FONT, 10), wraplength=540, justify="left").pack(anchor="w", pady=(0, 6))
+        how = tk.StringVar(value="toast")
+        opts = [("toast", "Import a Toast employee export (CSV)",
+                 "Toast Web \u2192 Employees \u2192 Export. Brings names and jobs.")]
         cfg = find_payroll_config()
-        if cfg and messagebox.askyesno(
-                "Import from Stamhad Payroll",
-                "Found your Stamhad Payroll data next to this app.\n\n"
-                "Copy its employees and positions here? (Wages are not copied.)", parent=self):
-            self._do_import(cfg)
-        else:
-            self.store.save_positions()
-            self.store.save_employees()
+        if cfg:
+            opts.append(("payroll", "Copy from Stamhad Payroll", "Found on this computer. Wages aren't copied."))
+            how.set("payroll")
+        opts += [("file", "Receive a file from another computer",
+                  "A .stamhad file made with Settings \u2192 Data \u2192 Share files."),
+                 ("manual", "I'll add them myself", "Opens Employees \u2192 + Add employee.")]
+        for val, title, sub in opts:
+            tk.Radiobutton(d.body, text=title, variable=how, value=val, bg=BG_PAGE, font=(FONT, 12),
+                           anchor="w").pack(anchor="w", pady=(2, 0))
+            tk.Label(d.body, text=sub, bg=BG_PAGE, fg=FG_SEC, font=(FONT, 9), wraplength=540,
+                     justify="left").pack(anchor="w", padx=(26, 0))
+
+        def start():
+            st["tip_method"] = meth.get()
+            self.store.save_settings()
+            choice = how.get()
+            d.destroy()
+            if choice == "payroll" and cfg:
+                self._do_import(cfg)
+                self.go("Employees")
+            elif choice == "toast":
+                self.go("Employees")
+                self.after(100, self.page_obj.import_toast)
+            elif choice == "file":
+                self._settings_tab = "Data"
+                self.go("Settings")
+                self.after(100, self.page_obj.receive_files)
+            else:
+                self.go("Employees")
+                self.after(100, lambda: self.page_obj.edit(None))
+        d.buttons("Get started", start, "primary", cancel_text=None)
+        d.protocol("WM_DELETE_WINDOW", start)
+        d.show(focus=d)
 
     def _do_import(self, cfg: Path):
         try:

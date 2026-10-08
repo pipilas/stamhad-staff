@@ -1,5 +1,6 @@
 from core import *
-S = DEFAULT_SETTINGS
+import copy
+S = copy.deepcopy(DEFAULT_SETTINGS); S["tip_method"] = "time"   # most tests below are about the time rule
 assert parse_time("4:05 PM")==16*60+5 and parse_time("16:05")==965 and parse_time("4p")==960
 assert parse_time("03/22/2026 06:57 AM")==417 and parse_time("12:30 AM")==30 and parse_time("x") is None
 assert hours_between("4:00 PM","12:30 AM")==8.5
@@ -31,4 +32,27 @@ D=lambda i,o:auto_tip_hours({"shift":"Dinner","time_in":i,"time_out":o},S)
 assert D("3:55 PM","10:53 PM")==D("4:01 PM","10:53 PM")==D("4:05 PM","10:53 PM")==6.8
 assert D("4:08 PM","10:53 PM")==6.75 and D("3:23 PM","11:59 PM")==6.92
 assert auto_tip_hours({"shift":"Brunch","time_in":"9:00 AM","time_out":"4:00 PM"},S)==7.0
+
+# ── points-only (default for new installs): time worked doesn't change the split ──
+P2 = copy.deepcopy(DEFAULT_SETTINGS)
+assert P2["tip_method"] == "points"
+pm2 = {"Server": {"name": "Server", "department": "FOH", "tip_points": 9},
+       "Busser": {"name": "Busser", "department": "FOH", "tip_points": 6},
+       "Bartender": {"name": "Bartender", "department": "FOH", "tip_points": 9, "receives_bar_tips": True},
+       "Cook": {"name": "Cook", "department": "BOH", "tip_points": 0}}
+EP = [{"id": "s1", "position": "Server", "shift": "Dinner", "time_in": "4:00 PM", "time_out": "11:00 PM"},
+      {"id": "s2", "position": "Server", "shift": "Dinner", "time_in": "7:30 PM", "time_out": "10:00 PM"},
+      {"id": "b1", "position": "Busser", "shift": "Dinner", "time_in": "5:00 PM", "time_out": "11:00 PM"},
+      {"id": "t1", "position": "Bartender", "shift": "Dinner", "time_in": "4:00 PM", "time_out": "11:30 PM"},
+      {"id": "t2", "position": "Bartender", "shift": "Dinner", "time_in": "8:00 PM", "time_out": "11:30 PM"},
+      {"id": "k1", "position": "Cook", "shift": "Dinner", "time_in": "3:00 PM", "time_out": "11:00 PM"}]
+r = split_shift_tips(EP, 336, 100, pm2, P2)
+rr = r["rows"]
+assert r["value_per_point_hour"] == 8.0                      # 336 / 42 points
+assert rr["s1"]["floor"] == rr["s2"]["floor"] == 72.0        # 7 h and 2.5 h: same
+assert rr["b1"]["floor"] == 48.0 and rr["k1"]["total"] == 0.0
+assert rr["t1"]["bar"] == rr["t2"]["bar"] == 50.0            # bar pool split evenly
+assert abs(sum(v["total"] for v in rr.values()) - 436) < 0.001
+rt = split_shift_tips(EP, 336, 100, pm2, S)["rows"]          # same night by time: earlier/longer gets more
+assert rt["s1"]["floor"] > rt["s2"]["floor"] and rt["t1"]["bar"] > rt["t2"]["bar"]
 print("ALL OK")

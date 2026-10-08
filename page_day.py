@@ -9,7 +9,7 @@ from tkinter import ttk, messagebox, filedialog
 from pathlib import Path
 
 from core import (DAYS, SHIFTS, shifts_for_day, norm_time, to_float, auto_hours, eff_hours,
-                  auto_tip_hours, eff_tip_hours, auto_points, eff_points, split_day_tips, day_name,
+                  auto_tip_hours, eff_tip_hours, auto_points, eff_points, split_day_tips, day_name, by_time,
                   double_split_time, split_entry, day_shift_name, parse_time as core_parse)
 from quick import quick_add_employee, emp_names, NEW_EMP, pos_values, ensure_position, SEP
 from store import gen_id
@@ -278,7 +278,8 @@ class DayPage:
         g = tk.Frame(card, bg=BG_CARD, padx=16, pady=10)
         g.pack(fill="x")
         g.columnconfigure(0, weight=1)
-        for c, t in enumerate(["Name", "Position", "Tip hours", "Points", "Tip"]):
+        timed = by_time(st)
+        for c, t in enumerate(["Name", "Position", "Tip hours" if timed else "", "Points", "Tip"]):
             tk.Label(g, text=t, bg=BG_CARD, fg=FG_SEC, font=(FONT, 9, "bold"), anchor="w" if c < 2 else "e").grid(
                 row=0, column=c, sticky="we", padx=8, pady=(0, 4))
         rows = sorted(inside, key=lambda e: -(split["rows"].get(e["id"], {}).get("total", 0)))
@@ -289,7 +290,7 @@ class DayPage:
                 tk.Label(g, text=emp["name"] if emp else f"? {e.get('toast_raw_name', '')}", bg=BG_CARD,
                          fg=FG if emp else DANGER, font=(FONT, 11, "bold"), anchor="w"),
                 tk.Label(g, text=e.get("position", ""), bg=BG_CARD, fg=FG_SEC, font=(FONT, 10), anchor="w"),
-                tk.Label(g, text=f"{eff_tip_hours(e, st):.2f}", bg=MANUAL_BG if e.get("tip_hours_manual") is not None else BG_CARD,
+                tk.Label(g, text=f"{eff_tip_hours(e, st):.2f}" if timed else "", bg=MANUAL_BG if e.get("tip_hours_manual") is not None else BG_CARD,
                          fg=FG, font=(FONT, 11), anchor="e", width=8),
                 tk.Label(g, text=f"{eff_points(e, pm):g}", bg=MANUAL_BG if e.get("points_manual") is not None else BG_CARD,
                          fg=FG, font=(FONT, 11), anchor="e", width=6),
@@ -361,8 +362,11 @@ class DayPage:
         tk.Label(b, text="Worked out automatically. Type a number to override it; clear the box to go back "
                          "to automatic.", bg=BG_CARD, fg=FG_SEC, font=(FONT, 9), justify="left",
                  wraplength=290).pack(anchor="w")
-        for key, lbl in (("hours_manual", "Hours worked"), ("tip_hours_manual", "Tip hours"),
-                         ("points_manual", "Points"), ("tip_override", "Fixed tip $")):
+        fields = (("hours_manual", "Hours worked"), ("tip_hours_manual", "Tip hours"),
+                  ("points_manual", "Points"), ("tip_override", "Fixed tip $"))
+        if not by_time(self.s.settings):
+            fields = tuple(f for f in fields if f[0] != "tip_hours_manual")
+        for key, lbl in fields:
             f = tk.Frame(b, bg=BG_CARD)
             f.pack(fill="x", pady=(8, 0))
             tk.Label(f, text=lbl, bg=BG_CARD, fg=FG_HDR, font=(FONT, 10, "bold"), width=12, anchor="w").pack(side="left")
@@ -451,7 +455,8 @@ class DayPage:
                 paid = sum(x["total"] for x in r["rows"].values())
                 txt = f"Total {money(fl + br)}  ·  paid out {money(paid)}"
                 if r["value_per_point_hour"]:
-                    txt += f"  ·  {money(r['value_per_point_hour'])} per point-hour"
+                    unit = "point-hour" if by_time(self.s.settings) else "point"
+                    txt += f"  ·  {money(r['value_per_point_hour'])} per {unit}"
                 warn = []
                 if r["floor_unassigned"]:
                     warn.append(f"{money(r['floor_unassigned'])} floor tips with nobody to get them")

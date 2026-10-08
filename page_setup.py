@@ -37,7 +37,8 @@ class EmployeesPage:
         n_act = len([e for e in s.employees if e.get("active", True)])
         h = PageHeader(self.parent, "Employees", f"{n_act} active")
         Btn(h.actions, "+ Add employee", lambda: self.edit(None), tip=f"{MOD_SYM}N").pack(side="right")
-        MenuBtn(h.actions, "More", [("Import from Stamhad Payroll…", self.app.import_payroll_dialog)],
+        MenuBtn(h.actions, "More", [("Import from a Toast employee export\u2026", self.import_toast),
+                                    ("Import from Stamhad Payroll\u2026", self.app.import_payroll_dialog)],
                 "ghost").pack(side="right", padx=8)
 
         bar = tk.Frame(self.parent, bg=BG_PAGE, padx=28)
@@ -526,24 +527,51 @@ class SettingsPage:
 
     def tab_tips(self):
         st = self.s.settings
-        b = self._card("When does the tip clock start and stop?",
-                       "Tips are split by  tip hours × points. Clocking in before the start time counts "
-                       "from the start time (e.g. 4:05 PM gives a few minutes of space). After the stop time "
-                       "the clock stops — anyone still working gets the full share. "
-                       "Leave blank to count real clock-in / clock-out. Worked hours are never changed.")
-        tk.Label(b, text="Starts", bg=BG_CARD, fg=FG_SEC, font=(FONT, 10, "bold")).grid(row=0, column=1, sticky="w", padx=10)
-        tk.Label(b, text="Stops", bg=BG_CARD, fg=FG_SEC, font=(FONT, 10, "bold")).grid(row=0, column=2, sticky="w", padx=10)
+        timed = st.get("tip_method", "points") == "time"
+        bm = self._card("How are tips split?",
+                        "Choose how each shift's floor tips are shared. Bar tips follow the same choice "
+                        "(after the barback's %). You can change this any time; it applies to every day.")
+        meth = tk.StringVar(value="time" if timed else "points")
+
+        def set_method():
+            if meth.get() != st.get("tip_method", "points"):
+                st["tip_method"] = meth.get()
+                self.s.save_settings()
+                self.app.notice.show("Tips are now split " + ("by time worked \u00d7 points" if meth.get() == "time"
+                                                              else "by points only"))
+                self.build()
+        for val, title, sub in (
+                ("points", "By points only",
+                 "Everyone who worked the shift gets their position's points, however long they stayed. "
+                 "E.g. two servers with 9 points get the same."),
+                ("time", "By time worked \u00d7 points",
+                 "Points \u00d7 the hours someone worked, so who came earlier or stayed longer gets more. "
+                 "You set when the tip clock starts and stops below.")):
+            f = tk.Frame(bm, bg=BG_CARD)
+            f.pack(fill="x", pady=2)
+            tk.Radiobutton(f, text=title, variable=meth, value=val, command=set_method, bg=BG_CARD,
+                           font=(FONT, 12, "bold"), anchor="w").pack(anchor="w")
+            tk.Label(f, text=sub, bg=BG_CARD, fg=FG_SEC, font=(FONT, 10), wraplength=700, justify="left").pack(
+                anchor="w", padx=(26, 0))
         fst, sst = {}, {}
-        for i, sh in enumerate(SHIFTS, start=1):
-            shift_pill(b, sh, 10).grid(row=i, column=0, sticky="w", pady=4)
-            e0 = Inp(b, width=10)
-            e0.set((st.get("tip_start_time") or {}).get(sh) or "")
-            e0.grid(row=i, column=1, sticky="w", padx=10, ipady=3)
-            sst[sh] = e0
-            e = Inp(b, width=10)
-            e.set(st["full_share_time"].get(sh) or "")
-            e.grid(row=i, column=2, sticky="w", padx=10, ipady=3)
-            fst[sh] = e
+        if timed:
+            b = self._card("When does the tip clock start and stop?",
+                           "Clocking in before the start time counts from the start time (e.g. 4:05 PM gives a "
+                           "few minutes of space). After the stop time the clock stops \u2014 anyone still working "
+                           "gets the full share. Leave blank to count real clock-in / clock-out. Worked hours are "
+                           "never changed.")
+            tk.Label(b, text="Starts", bg=BG_CARD, fg=FG_SEC, font=(FONT, 10, "bold")).grid(row=0, column=1, sticky="w", padx=10)
+            tk.Label(b, text="Stops", bg=BG_CARD, fg=FG_SEC, font=(FONT, 10, "bold")).grid(row=0, column=2, sticky="w", padx=10)
+            for i, sh in enumerate(SHIFTS, start=1):
+                shift_pill(b, sh, 10).grid(row=i, column=0, sticky="w", pady=4)
+                e0 = Inp(b, width=10)
+                e0.set((st.get("tip_start_time") or {}).get(sh) or "")
+                e0.grid(row=i, column=1, sticky="w", padx=10, ipady=3)
+                sst[sh] = e0
+                e = Inp(b, width=10)
+                e.set(st["full_share_time"].get(sh) or "")
+                e.grid(row=i, column=2, sticky="w", padx=10, ipady=3)
+                fst[sh] = e
         b2 = self._card("Brunch days", "On these days the day shift is called Brunch instead of Morning.")
         bvars = {}
         for d in DAYS:
@@ -563,8 +591,9 @@ class SettingsPage:
                 messagebox.showwarning("Check times", f"Can't read: {', '.join(bad)}\nUse e.g. 11:00 PM",
                                        parent=self.app)
                 return
-            st["full_share_time"] = {sh: (norm_time(e.get()) or None) for sh, e in fst.items()}
-            st["tip_start_time"] = {sh: (norm_time(e.get()) or None) for sh, e in sst.items()}
+            if fst:
+                st["full_share_time"] = {sh: (norm_time(e.get()) or None) for sh, e in fst.items()}
+                st["tip_start_time"] = {sh: (norm_time(e.get()) or None) for sh, e in sst.items()}
             st["brunch_days"] = [d for d, v in bvars.items() if v.get()]
             st["day_shift_cutoff"] = norm_time(cut.get()) or "2:00 PM"
             self._saved()

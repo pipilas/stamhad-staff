@@ -96,7 +96,12 @@ class Store:
     def __init__(self, root: Path | None = None):
         self.root = root or data_dir()
         (self.root / "weeks").mkdir(parents=True, exist_ok=True)
-        self.settings = _deep_merge(DEFAULT_SETTINGS, self._load("settings.json", {}))
+        saved = self._load("settings.json", None)
+        self.settings = _deep_merge(DEFAULT_SETTINGS, saved or {})
+        if saved is not None and "tip_method" not in saved:
+            # made before the choice existed -> it was splitting by time; keep it that way
+            self.settings["tip_method"] = "time"
+            self._save("settings.json", self.settings)
         self.positions = self._load("positions.json", None)
         self.employees = self._load("employees.json", None)
         self.first_run = self.positions is None and self.employees is None

@@ -3,6 +3,12 @@
 The release notes shown in the app's update window come from this file:
 the section whose heading matches the version being released.
 
+## 0.7.2
+- Fixed: on Windows, clicking any button showed a "bad screen distance" error
+- Tips: choose how they're split in Settings → Tips & shifts: by points only, or by time worked × points. New installs start with points only; existing installs keep splitting by time
+- New installs start empty with a welcome screen: choose how tips are split and how to add employees (Toast export, Stamhad Payroll, a file from another computer, or by hand)
+- Employees → More: import from a Toast employee export
+
 ## 0.7.1
 - Installers: StamhadStaff-Setup.exe for Windows (Start menu, desktop shortcut, uninstaller) and a .pkg installer for Mac
 - Updates work for installed copies too (the new installer runs by itself in the background)

@@ -30,6 +30,9 @@ DEFAULT_SETTINGS = {
     "day_shift_cutoff": "2:00 PM",
     # days where the day shift is called Brunch instead of Morning
     "brunch_days": ["Saturday", "Sunday"],
+    # how floor tips are split: "points" = by position points only (everyone on the shift gets
+    # their full points), "time" = tip hours x points (who came earlier / stayed longer gets more)
+    "tip_method": "points",
     # per-shift "full share" time. None = no cap (split by full hours worked)
     "full_share_time": {"Morning": None, "Brunch": None, "Dinner": "11:00 PM"},
     # per-shift tip-clock start: clocking in before this counts from this time.
@@ -279,6 +282,11 @@ def _round_split(total: float, weights: dict) -> dict:
     return {k: v / 100 for k, v in floor.items()}
 
 
+def by_time(settings: dict) -> bool:
+    """True when tips are split by time worked (tip hours x points)."""
+    return (settings or {}).get("tip_method", "points") == "time"
+
+
 def split_shift_tips(entries: list[dict], floor_pool: float, bar_pool: float,
                      positions_by_name: dict, settings: dict) -> dict:
     """
@@ -307,7 +315,7 @@ def split_shift_tips(entries: list[dict], floor_pool: float, bar_pool: float,
         if pos.get("department", "FOH") != "FOH":
             continue
         pts = eff_points(e, positions_by_name)
-        th = eff_tip_hours(e, settings)
+        th = eff_tip_hours(e, settings) if by_time(settings) else 1.0
         w = pts * th
         if w > 0:
             fweights[e["id"]] = w
@@ -324,7 +332,7 @@ def split_shift_tips(entries: list[dict], floor_pool: float, bar_pool: float,
         if pct > 0:
             barbacks.append((e["id"], pct))
         elif pos.get("receives_bar_tips"):
-            bartenders[e["id"]] = eff_tip_hours(e, settings)
+            bartenders[e["id"]] = eff_tip_hours(e, settings) if by_time(settings) else 1.0
     rem = bar_left
     for eid, pct in barbacks:
         amt = round(bar_left * pct / 100, 2)

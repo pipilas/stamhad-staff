@@ -549,18 +549,25 @@ class Btn(tk.Frame):
         self._lbl = tk.Label(self, text=text, bg=bg, fg=fg, cursor="hand2",
                              font=(FONT, 10 if small else 11, "bold"),
                              padx=8 if small else 14, pady=self._pady)
-        self._lbl.pack()
+        self._lbl.pack(pady=(0, 1))
         for w in (self, self._lbl):
             w.bind("<Enter>", lambda e: self._paint(self._hv))
             w.bind("<Leave>", lambda e: self._paint(self._bg))
-            w.bind("<ButtonPress-1>", lambda e: self._lbl.config(pady=(self._pady + 1, self._pady - 1)))
+            w.bind("<ButtonPress-1>", lambda e: self._press(True))
             w.bind("<ButtonRelease-1>", self._release)
         if tip:
             Tooltip(self._lbl, tip)
 
+    def _press(self, down):
+        # nudge the text 1px down while pressed (pack padding: works the same on Windows, Mac, Linux)
+        try:
+            self._lbl.pack_configure(pady=(1, 0) if down else (0, 1))
+        except tk.TclError:
+            pass
+
     def _release(self, e):
         try:
-            self._lbl.config(pady=self._pady)
+            self._press(False)
         except tk.TclError:
             return
         # only fire if released over the button (lets you cancel by dragging away)
