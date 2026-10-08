@@ -216,12 +216,36 @@ def prepare_and_launch(pkg: Path, root: Path, version: str, status=None) -> None
     log_file.parent.mkdir(exist_ok=True)
     result_file.write_text(json.dumps({"to": version, "status": "started",
                                        "at": datetime.now().isoformat(timespec="seconds")}))
+    before = log_file.stat().st_size if log_file.exists() else 0
     if kind == "win-installed":
-        _launch_windows_setup(pkg, target, result_file, log_file, version)
+        marker = _launch_windows_setup(pkg, target, result_file, log_file, version)
+        started = lambda: marker.exists()                                   # Setup writes its log at once
     elif kind == "win":
         _launch_windows(pkg, target, result_file, log_file, version)
+        started = lambda: log_file.exists() and log_file.stat().st_size > before
     else:
         _launch_mac(pkg, target, result_file, log_file, version, status)
+        started = lambda: log_file.exists() and log_file.stat().st_size > before
+    # Don't quit until the updater is really running; otherwise the app would just vanish.
+    status("Starting the updater\u2026")
+    for _ in range(60):                     # up to 15 s
+        if started():
+            return
+        time.sleep(0.25)
+    try:
+        result_file.unlink()
+    except Exception:
+        pass
+    raise RuntimeError("The updater didn't start (it may have been blocked by antivirus). "
+                       "Nothing was changed. You can install the new version yourself from the download page.")
+
+
+def _log_line(logf: Path, msg: str):
+    try:
+        with open(logf, "a", encoding="utf-8") as f:
+            f.write(f"{datetime.now():%Y-%m-%dT%H:%M:%S}  {msg}\n")
+    except Exception:
+        pass
 
 
 def _launch_windows(new_exe: Path, exe: Path, result: Path, logf: Path, version: str):
@@ -262,45 +286,29 @@ Start-Process $exe
 Start-Sleep -Seconds 2
 try {{ Remove-Item $new -Force }} catch {{}}
 """, encoding="utf-8-sig")      # BOM: PowerShell 5 reads non-English paths correctly
-    flags = 0x00000008 | 0x00000200 | 0x08000000   # DETACHED | NEW_PROCESS_GROUP | NO_WINDOW
-    subprocess.Popen(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden",
+    # Own hidden console (CREATE_NO_WINDOW) in its own group. NOT DETACHED_PROCESS: PowerShell
+    # without any console can fail to start, which is what broke the 0.7.1 updater.
+    flags = 0x00000200 | 0x08000000                 # NEW_PROCESS_GROUP | NO_WINDOW
+    subprocess.Popen(["powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
                       "-File", str(ps)], creationflags=flags, close_fds=True)
+    return logf
 
 
 def _launch_windows_setup(setup: Path, exe: Path, result: Path, logf: Path, version: str):
-    """Installed copy: run the new StamhadStaff-Setup.exe silently once the app has closed.
-    Inno Setup undoes its own changes if it fails, so the old version stays usable."""
-    pids = [os.getpid()]
+    """Installed copy: start the new StamhadStaff-Setup.exe directly (no script in between).
+    /UPDATE=1 makes Setup reopen the app when it's done; /RESULT tells it where to report.
+    Setup closes this app itself (Restart Manager) and undoes its own changes if it fails."""
+    setup_log = logf.parent / "setup.log"
     try:
-        pids.append(os.getppid())
+        if setup_log.exists():
+            setup_log.unlink()
     except Exception:
         pass
-    ps = Path(tempfile.gettempdir()) / "StamhadStaffUpdate" / "install-update.ps1"
-    setup_log = logf.parent / "setup.log"
-
-    def q(p):
-        return "'" + str(p).replace("'", "''") + "'"
-    ps.write_text(f"""
-$ErrorActionPreference = 'Stop'
-$exe = {q(exe)}; $setup = {q(setup)}; $log = {q(logf)}; $res = {q(result)}; $slog = {q(setup_log)}
-function Write-UpdLog($m) {{ try {{ Add-Content -Path $log -Encoding UTF8 -Value ((Get-Date -Format s) + '  ' + $m) }} catch {{}} }}
-function Set-UpdResult($s, $m) {{ Set-Content -Path $res -Encoding UTF8 -Value ('{{"to": "{version}", "status": "' + $s + '", "detail": "' + ($m -replace '"', "'") + '"}}') }}
-Write-UpdLog 'update to {version} (installer): waiting for the app to close'
-foreach ($p in @({",".join(str(p) for p in pids)})) {{ try {{ Wait-Process -Id $p -Timeout 90 -ErrorAction SilentlyContinue }} catch {{}} }}
-Start-Sleep -Milliseconds 800
-try {{
-  $p = Start-Process -FilePath $setup -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CLOSEAPPLICATIONS', ('/LOG="' + $slog + '"')) -Wait -PassThru
-  $code = $p.ExitCode
-}} catch {{ $code = -1; Write-UpdLog ('could not start the installer: ' + $_) }}
-if ($code -eq 0) {{ Write-UpdLog 'installed, starting new version'; Set-UpdResult 'ok' '' }}
-else {{ Write-UpdLog ('installer failed with code ' + $code + ' (see setup.log)'); Set-UpdResult 'failed' ('The installer stopped (code ' + $code + '). Details in logs/setup.log.') }}
-Start-Process $exe
-Start-Sleep -Seconds 2
-try {{ Remove-Item $setup -Force }} catch {{}}
-""", encoding="utf-8-sig")
-    flags = 0x00000008 | 0x00000200 | 0x08000000
-    subprocess.Popen(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden",
-                      "-File", str(ps)], creationflags=flags, close_fds=True)
+    _log_line(logf, f"update to {version} (installer): starting {setup.name}")
+    subprocess.Popen([str(setup), "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CLOSEAPPLICATIONS",
+                      "/UPDATE=1", f"/RESULT={result}", f"/LOG={setup_log}"],
+                     creationflags=0x00000008 | 0x00000200, close_fds=True)   # DETACHED | NEW_PROCESS_GROUP
+    return setup_log
 
 
 def _launch_mac(dmg: Path, app: Path, result: Path, logf: Path, version: str, status):
@@ -364,6 +372,7 @@ fi
     os.chmod(sh, 0o755)
     subprocess.Popen(["/bin/bash", str(sh)], start_new_session=True, close_fds=True,
                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    return logf
 
 
 # ── after a restart ─────────────────────────────────────────────────────────

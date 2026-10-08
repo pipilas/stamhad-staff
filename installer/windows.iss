@@ -44,8 +44,30 @@ Source: "..\dist\StamhadStaff\*"; DestDir: "{app}"; Flags: ignoreversion recurse
 Name: "{autoprograms}\Stamhad Staff"; Filename: "{app}\StamhadStaff.exe"
 Name: "{autodesktop}\Stamhad Staff"; Filename: "{app}\StamhadStaff.exe"; Tasks: desktopicon
 
-[Run]
-Filename: "{app}\StamhadStaff.exe"; Description: "Open Stamhad Staff"; Flags: nowait postinstall skipifsilent
-
 ; Your data (employees, schedule, hours, tips) is in %APPDATA%\StamhadStaff and is
 ; NOT removed by the uninstaller.
+
+[Run]
+; normal install: offer to open the app at the end
+Filename: "{app}\StamhadStaff.exe"; Description: "Open Stamhad Staff"; Flags: nowait postinstall skipifsilent
+; in-app update (silent, started with /UPDATE=1): reopen the app by itself
+Filename: "{app}\StamhadStaff.exe"; Flags: nowait; Check: IsAppUpdate
+
+[Code]
+function IsAppUpdate: Boolean;
+begin
+  Result := WizardSilent and (ExpandConstant('{param:UPDATE|0}') = '1');
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+  ResultFile: String;
+begin
+  { tell the app the update worked (it reads this on the next start) }
+  if CurStep = ssPostInstall then
+  begin
+    ResultFile := ExpandConstant('{param:RESULT|}');
+    if ResultFile <> '' then
+      SaveStringToFile(ResultFile, '{"to": "{#AppVer}", "status": "ok", "detail": ""}', False);
+  end;
+end;

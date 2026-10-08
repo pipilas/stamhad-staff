@@ -91,7 +91,26 @@ jobs:
           $t = Get-Content "$HOME\stamhad-staff-selftest.txt" -Raw; $t
           if ($p.ExitCode -ne 0) { throw "installed app self-test failed" }
           if ($t -notmatch 'kind=win-installed') { throw "installed app doesn't know it's installed" }
-          Run-Setup out\StamhadStaff-Setup.exe "$PWD\setup2.log"      # same as an in-app update
+          # REAL in-app update: the installed app starts Setup and quits; Setup reinstalls and reopens it
+          $res = "$env:APPDATA\StamhadStaff\update-result.json"
+          Remove-Item $res -ErrorAction SilentlyContinue
+          $p = Start-Process -FilePath "$dir\StamhadStaff.exe" -ArgumentList @('--selftest-update', "$PWD\out\StamhadStaff-Setup.exe") -PassThru
+          if (-not $p.WaitForExit(60000)) { $p.Kill(); throw "app didn't quit for the update" }
+          Get-Content "$HOME\stamhad-staff-selftest.txt"
+          if ($p.ExitCode -ne 0) { throw "app couldn't start the updater" }
+          $ok = $false
+          for ($i = 0; $i -lt 90; $i++) {
+            Start-Sleep -Seconds 2
+            if ((Test-Path $res) -and ((Get-Content $res -Raw) -match '"status": "ok"')) { $ok = $true; break }
+          }
+          Get-Content "$env:APPDATA\StamhadStaff\logs\setup.log" -Tail 15 -ErrorAction SilentlyContinue
+          if (-not $ok) { throw "in-app update didn't finish" }
+          Start-Sleep -Seconds 5
+          $running = Get-Process StamhadStaff -ErrorAction SilentlyContinue
+          if (-not $running) { throw "app wasn't reopened after the update" }
+          $running | Stop-Process -Force
+          Start-Sleep -Seconds 2
+          "in-app update OK"
           $p = Start-Process -FilePath "$dir\unins000.exe" -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART') -Wait -PassThru
           Start-Sleep -Seconds 3
           if (Test-Path "$dir\StamhadStaff.exe") { throw "uninstall left the app behind" }
@@ -152,6 +171,22 @@ jobs:
           for i in $(seq 1 120); do kill -0 $pid 2>/dev/null || break; sleep 1; done
           if kill -0 $pid 2>/dev/null; then kill $pid; echo "hung"; exit 1; fi
           wait $pid; rc=$?; cat ~/stamhad-staff-selftest.txt; exit $rc
+      - name: Test a REAL in-app update (app quits, helper swaps it, app reopens)
+        run: |
+          APP="/Applications/Stamhad Staff.app"
+          DATA="$HOME/Library/Application Support/StamhadStaff"
+          RES="$DATA/update-result.json"; rm -f "$RES"
+          "$APP/Contents/MacOS/StamhadStaff" --selftest-update "$PWD/out/StamhadStaff-$V-mac.dmg" & pid=$!
+          for i in $(seq 1 120); do kill -0 $pid 2>/dev/null || break; sleep 1; done
+          if kill -0 $pid 2>/dev/null; then kill $pid; echo "app didn't quit for the update"; exit 1; fi
+          wait $pid; rc=$?; cat ~/stamhad-staff-selftest.txt; [ $rc -eq 0 ] || exit 1
+          for i in $(seq 1 90); do grep -q '"status": "ok"' "$RES" 2>/dev/null && break; sleep 2; done
+          cat "$DATA/logs/update.log" || true
+          grep -q '"status": "ok"' "$RES" || { echo "in-app update didn't finish"; cat "$RES"; exit 1; }
+          sleep 5
+          pgrep -fl "Stamhad Staff.app" || { echo "app wasn't reopened after the update"; exit 1; }
+          pkill -f "Stamhad Staff.app" || true
+          echo "in-app update OK"
       - uses: actions/upload-artifact@v4
         with:
           name: mac

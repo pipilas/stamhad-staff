@@ -7,6 +7,7 @@ Run:  python3 app.py
 
 from __future__ import annotations
 
+import os
 import sys
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
@@ -573,9 +574,27 @@ def selftest() -> int:
         return 1
 
 
+def selftest_update(pkg: str) -> int:
+    """Used by the GitHub build: run the REAL in-app update with an installer file, then quit
+    like the app does. CI then checks that the new version was installed and reopened."""
+    import traceback
+    out = Path.home() / "stamhad-staff-selftest.txt"
+    try:
+        root = Store().root
+        applog.setup(root, VERSION)
+        updater.prepare_and_launch(Path(pkg), root, VERSION, lambda m: print(m, flush=True))
+        out.write_text(f"UPDATE STARTED {VERSION}\n")
+        return 0
+    except Exception:
+        out.write_text("UPDATE FAIL\n" + traceback.format_exc())
+        return 1
+
+
 def main():
     if "--selftest" in sys.argv:
         sys.exit(selftest())
+    if "--selftest-update" in sys.argv:
+        os._exit(selftest_update(sys.argv[sys.argv.index("--selftest-update") + 1]))
     app = App()
     app.mainloop()
 

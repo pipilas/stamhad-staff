@@ -3,6 +3,9 @@
 The release notes shown in the app's update window come from this file:
 the section whose heading matches the version being released.
 
+## 0.7.3
+- Fixed: on Windows the update said the new version would open but it never did. Installed copies now hand the update to the installer directly, and the app only closes once the updater has really started
+
 ## 0.7.2
 - Fixed: on Windows, clicking any button showed a "bad screen distance" error
 - Tips: choose how they're split in Settings → Tips & shifts: by points only, or by time worked × points. New installs start with points only; existing installs keep splitting by time
