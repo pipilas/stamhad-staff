@@ -38,6 +38,8 @@ jobs:
         with: { python-version: "3.12" }
       - name: Tip maths tests
         run: python test_core.py
+      - name: Sign-in and subscription tests (fake Firebase)
+        run: python tests/test_account.py
 
   windows:
     needs: check

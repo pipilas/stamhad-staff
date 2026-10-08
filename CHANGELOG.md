@@ -3,6 +3,12 @@
 The release notes shown in the app's update window come from this file:
 the section whose heading matches the version being released.
 
+## 0.8.0
+- Sign in with your Stamhad account (email and password). The password isn't stored on the computer
+- Subscription check when the app opens and every few hours; works offline for 7 days after the last check
+- Settings → Account: plan, paid until, last check, change password, sign out
+- If the subscription isn't active you can still save all your data
+
 ## 0.7.4
 - Removed the "Import from Stamhad Payroll" option (welcome screen, Employees and Settings)
 

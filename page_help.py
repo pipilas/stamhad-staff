@@ -157,6 +157,18 @@ Open a .stamhad file. It shows what's in it compared with this computer, **backs
 2. It gets opened on another computer with **Receive files**, checked and fixed.
 3. The fixed data comes back the same way: **Receive files → Sync** (or Replace).
 """),
+    ("account", "\U0001F511", "Account & subscription", """
+Stamhad Staff needs a **Stamhad account**: the email and password you got from Stamhad Software.
+## Signing in
+- The app asks once on each computer, then remembers you. Your password is **not** saved on the computer.
+- **Forgot password?** on the sign-in screen sends you an email to set a new one.
+- **Settings → Account** shows your plan, until when it's paid, and when it was last checked. **Change password** and **Sign out** are there too.
+## The subscription check
+- The app checks your subscription when it opens and every few hours.
+- **No internet?** It keeps working for **7 days** after the last successful check, then asks to connect once.
+- If the subscription isn't active, a screen says so. Your data stays on the computer, and **Save my data…** keeps a copy for you.
+! Can several computers use the same account? Yes. Sign in with the same email on each one.
+"""),
     ("updates", "⬇️", "Updates", """
 The app checks GitHub when it opens. If there's a new version it **asks**: **Update now**, **Later**, or **Skip this version**. It never updates on its own.
 You can also check any time in **Settings → Data → Check for updates**, and turn the automatic check off there.

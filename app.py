@@ -23,6 +23,8 @@ import ui  # noqa: E402
 import applog  # noqa: E402
 import updater  # noqa: E402
 import update_ui  # noqa: E402
+import account  # noqa: E402
+import account_ui  # noqa: E402
 
 try:
     VERSION = (Path(__file__).parent / "version.txt").read_text().strip()
@@ -93,15 +95,29 @@ class App(tk.Tk):
 
         self.protocol("WM_DELETE_WINDOW", self._close)
         preset_applied = self._apply_preset()
-        if self.store.first_run and not self.store.employees:
-            self.after(300, self._offer_first_import)
+        self.gate = None
         start = OLD_NAMES.get(ui_state.get("page"), ui_state.get("page"))
         self.go(start if start in PAGES else "Home")
         self.deiconify()
+        if real_run and account.configured():
+            self.gate = account_ui.Gate(self)       # sign-in / subscription check covers the window
+            self.gate.start()
+        if self.store.first_run and not self.store.employees:
+            self.when_unlocked(self._offer_first_import)
         if real_run:
             res = updater.startup_cleanup(self.store.root)
             self.after(900, lambda: update_ui.show_last_result(self, res))
             self.after(4000, lambda: update_ui.startup_check(self))
+
+    def locked(self) -> bool:
+        """True while the sign-in / subscription screen covers the app."""
+        return bool(self.gate and self.gate.locked)
+
+    def when_unlocked(self, fn):
+        if self.gate:
+            self.gate.when_open(fn)
+        else:
+            self.after(300, fn)
 
     def reload_store(self):
         """Re-read everything from disk (after Receive files)."""
@@ -211,7 +227,7 @@ class App(tk.Tk):
     def _bind_shortcuts(self):
         def on(key, fn, need_no_typing=False):
             def h(ev):
-                if self._dialog_open():
+                if self._dialog_open() or self.locked():
                     return
                 if need_no_typing and isinstance(self.focus_get(), tk.Entry):
                     return
@@ -232,7 +248,7 @@ class App(tk.Tk):
             on(ch.upper(), lambda a=action: self._action(a))
         on("slash", self.show_shortcuts)
         on("question", self.open_help)
-        self.bind_all("<F1>", lambda e: (self.open_help(), "break")[1])
+        self.bind_all("<F1>", lambda e: (None if self.locked() else self.open_help(), "break")[1])
         on("f", self.focus_search)
         on("F", self.focus_search)
         self.bind("<Escape>", self._escape)
@@ -529,7 +545,7 @@ def selftest() -> int:
     out = Path.home() / "stamhad-staff-selftest.txt"
     try:
         for m in ("core", "store", "ui", "toast", "quick", "inventory", "exports", "applog", "updater",
-                  "update_ui", "sharing", "page_help", "page_home", "page_day", "page_schedule", "page_week",
+                  "update_ui", "sharing", "account", "account_ui", "page_help", "page_home", "page_day", "page_schedule", "page_week",
                   "page_inventory", "page_setup", "paramiko", "reportlab.platypus", "certifi"):
             importlib.import_module(m)
         r = tk.Tk()

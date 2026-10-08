@@ -27,7 +27,7 @@ for pkg in ("paramiko", "nacl", "bcrypt", "cryptography", "cffi", "certifi"):
 hidden += collect_submodules("reportlab")
 # app modules (pages are imported lazily, so list them all)
 hidden += ["core", "store", "ui", "toast", "quick", "inventory", "exports", "applog", "updater",
-           "update_ui", "sharing", "page_help", "page_home", "page_day", "page_schedule", "page_week",
+           "update_ui", "sharing", "account", "account_ui", "page_help", "page_home", "page_day", "page_schedule", "page_week",
            "page_inventory", "page_setup"]
 
 a = Analysis(

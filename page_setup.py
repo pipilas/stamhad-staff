@@ -14,6 +14,7 @@ from store import gen_id
 from ui import *  # noqa: F401,F403
 import applog
 import sharing
+import account
 import updater
 import update_ui
 
@@ -384,7 +385,7 @@ class PositionsPage:
 #  SETTINGS
 # ═════════════════════════════════════════════════════════════════════════════
 class SettingsPage:
-    TABS = ["Tips & shifts", "Schedule", "Toast", "Data"]
+    TABS = ["Tips & shifts", "Schedule", "Toast", "Data", "Account"]
 
     def __init__(self, app, parent):
         self.app, self.s, self.parent = app, app.store, parent
@@ -402,7 +403,7 @@ class SettingsPage:
         self.sf.pack(fill="both", expand=True, padx=28, pady=(0, 16))
         self.save_fn = None
         {"Tips & shifts": self.tab_tips, "Schedule": self.tab_schedule, "Toast": self.tab_toast,
-         "Data": self.tab_data}[self.tab]()
+         "Data": self.tab_data, "Account": self.tab_account}[self.tab]()
         if self.save_fn:
             Btn(h.actions, "Save", self.save_fn, "success", tip=f"Enter  or  {MOD_SYM}S").mark_default().pack(side="right")
 
@@ -718,6 +719,56 @@ class SettingsPage:
                 subprocess.Popen(["xdg-open", str(Path(p).parent if Path(p).is_file() else p)])
         except Exception as ex:
             messagebox.showerror("Can't open", str(ex), parent=self.app)
+
+    def tab_account(self):
+        gate = getattr(self.app, "gate", None)
+        if gate is None:
+            b = self._card("Account", "Sign-in isn't set up in this copy of the app.")
+            return
+        b = self._card("Your Stamhad account",
+                       "Your subscription is checked when the app opens and every few hours. Without internet "
+                       f"the app keeps working for {account.GRACE_DAYS} days after the last check.")
+        g = tk.Frame(b, bg=BG_CARD)
+        g.pack(anchor="w")
+        for r, (k, v) in enumerate(gate.summary()):
+            tk.Label(g, text=k, bg=BG_CARD, fg=FG_SEC, font=(FONT, 10, "bold")).grid(row=r, column=0, sticky="w", pady=2)
+            tk.Label(g, text=v, bg=BG_CARD, fg=FG, font=(FONT, 11)).grid(row=r, column=1, sticky="w", padx=14, pady=2)
+        row = tk.Frame(b, bg=BG_CARD)
+        row.pack(anchor="w", pady=(12, 0))
+        chk = Btn(row, "Check now", None, "outline", small=True)
+
+        def check():
+            chk._lbl.config(text="Checking\u2026")
+
+            def done(res, err):
+                if err is not None:
+                    self.app.notice.show("Offline \u2014 couldn't check right now", bg=WARN_BG, fg=WARN_FG)
+                elif res and res.get("state") == "ok":
+                    self.app.notice.show("Subscription active \u2713")
+                if self.app.page == "Settings" and getattr(self.app, "_settings_tab", "") == "Account":
+                    self.build()
+            gate.recheck(quiet=False, done=done)
+        chk._cmd = check
+        chk.pack(side="left")
+
+        def reset():
+            email = gate.session.data.get("email", "")
+            try:
+                account.send_password_reset(email)
+                messagebox.showinfo("Check your email", f"We sent a link to {email} to set a new password.",
+                                    parent=self.app)
+            except account.Offline:
+                messagebox.showwarning("Offline", "Can't reach the internet right now.", parent=self.app)
+            except Exception as ex:
+                messagebox.showerror("Couldn't send", str(ex), parent=self.app)
+        Btn(row, "Change password\u2026", reset, "ghost", small=True).pack(side="left", padx=8)
+
+        def out():
+            if messagebox.askyesno("Sign out", "Sign out of Stamhad Staff on this computer?\n\n"
+                                   "Your data stays here. You'll need your email and password to sign in again.",
+                                   parent=self.app):
+                gate.sign_out()
+        Btn(row, "Sign out", out, "ghost", small=True).pack(side="left")
 
     def tab_data(self):
         # ── share / receive ───────────────────────────────────────────────
