@@ -354,7 +354,8 @@ def _launch_mac(dmg: Path, app: Path, result: Path, logf: Path, version: str, st
 APP={q(app)}; NEW={q(new_app)}; BAK="$APP.previous"; LOG={q(logf)}; RES={q(result)}
 w() {{ echo "$(date '+%Y-%m-%dT%H:%M:%S')  $1" >> "$LOG"; }}
 r() {{ printf '{{"to": "{version}", "status": "%s", "detail": "%s"}}' "$1" "$2" > "$RES"; }}
-w "update to {version}: waiting for the app to close"
+exec 2>>"$LOG"            # any error message from mv/ditto/open goes into update.log
+w "update to {version}: waiting for the app to close (user $(id -un), app owner $(stat -f %Su "$APP" 2>/dev/null))"
 for i in $(seq 1 180); do kill -0 {os.getpid()} 2>/dev/null || break; sleep 0.5; done
 sleep 1
 rm -rf "$BAK"
