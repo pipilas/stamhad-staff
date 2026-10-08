@@ -172,9 +172,6 @@ jobs:
           if kill -0 $pid 2>/dev/null; then kill $pid; echo "hung"; exit 1; fi
           wait $pid; rc=$?; cat ~/stamhad-staff-selftest.txt; exit $rc
       - name: Test a REAL in-app update (app quits, helper swaps it, app reopens)
-        # TEMPORARY (0.7.3): reports the Mac update problem without blocking the Windows fix.
-        # Remove this line once the Mac update passes.
-        continue-on-error: true
         run: |
           APP="/Applications/Stamhad Staff.app"
           DATA="$HOME/Library/Application Support/StamhadStaff"

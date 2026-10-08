@@ -10,7 +10,7 @@ from tkinter import ttk, messagebox, filedialog
 from pathlib import Path
 
 from core import DAYS, SHIFTS, norm_time, to_float
-from store import gen_id, find_payroll_config
+from store import gen_id
 from ui import *  # noqa: F401,F403
 import applog
 import sharing
@@ -37,8 +37,7 @@ class EmployeesPage:
         n_act = len([e for e in s.employees if e.get("active", True)])
         h = PageHeader(self.parent, "Employees", f"{n_act} active")
         Btn(h.actions, "+ Add employee", lambda: self.edit(None), tip=f"{MOD_SYM}N").pack(side="right")
-        MenuBtn(h.actions, "More", [("Import from a Toast employee export\u2026", self.import_toast),
-                                    ("Import from Stamhad Payroll\u2026", self.app.import_payroll_dialog)],
+        MenuBtn(h.actions, "More", [("Import from a Toast employee export\u2026", self.import_toast)],
                 "ghost").pack(side="right", padx=8)
 
         bar = tk.Frame(self.parent, bg=BG_PAGE, padx=28)
@@ -104,7 +103,7 @@ class EmployeesPage:
             emps = [e for e in emps if matches(self.query, e["name"], *e.get("positions", []), e.get("phone", ""))]
         if not s.employees:
             empty_state(self.sf, "\U0001F465", "No employees yet", "+ Add employee", lambda: self.edit(None),
-                        sub="Add people one by one, or import them from Stamhad Payroll (More ▾).")
+                        sub="Add people one by one, or import a Toast employee export (More ▾).")
             return
         if not emps:
             tk.Label(self.sf, text="Nobody matches.", bg=BG_PAGE, fg=FG_SEC, font=(FONT, 12), pady=30).pack()
@@ -774,7 +773,3 @@ class SettingsPage:
         Btn(row, "Open data folder", lambda: self._reveal(self.s.root), "ghost", small=True).pack(side="left")
         Btn(row, "Open error log", lambda: self._reveal(applog.log_file() or applog.log_dir(self.s.root)),
             "ghost", small=True).pack(side="left", padx=8)
-        b2 = self._card("Stamhad Payroll", "Copy employees and positions from Stamhad Payroll (wages aren't copied; "
-                                           "people already here are skipped).")
-        Btn(b2, "Import from Stamhad Payroll…", self.app.import_payroll_dialog, "outline",
-            small=True).pack(anchor="w")

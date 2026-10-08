@@ -15,7 +15,7 @@ from ui import *  # noqa: F401,F403
 
 TOPICS = [
     ("start", "\U0001F44B", "Getting started", """
-A new install starts **empty**. A welcome screen asks how tips are split and how to bring in your employees (Toast export, Stamhad Payroll, a file from another computer, or by hand).
+A new install starts **empty**. A welcome screen asks how tips are split and how to bring in your employees (Toast export, a file from another computer, or by hand).
 Stamhad Staff keeps your **employees**, the **weekly schedule**, **hours & tips** and **inventory**. There's no payroll: at the end of the week it gives you **hours worked** and **total tips** for each person.
 Everything is saved automatically the moment you change it. There's no Save button except in Settings.
 ## The sidebar
@@ -129,7 +129,6 @@ Past orders. Click one to see it, **put it in the cart again**, or delete it.
 ## Employees
 - **Active / Inactive / All** filter, search, and click someone to edit them.
 - **More ▾ → Import from a Toast employee export** replaces your list with the one from Toast.
-- **Import from Stamhad Payroll** copies employees and positions (wages aren't copied).
 ## Positions
 Each position has **tip points**, **Front or Back of House**, whether it **gets bar tips**, and a **bar share %** (for barbacks).
 ! Changing points changes the tip split for every day that isn't locked with a fixed tip, so set them before entering tips.

@@ -17,7 +17,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from core import DAYS, SHIFTS, monday_of, norm_time, to_float  # noqa: E402
-from store import Store, gen_id, find_payroll_config  # noqa: E402
+from store import Store, gen_id  # noqa: E402
 from ui import *  # noqa: E402,F401
 import ui  # noqa: E402
 import applog  # noqa: E402
@@ -493,10 +493,6 @@ class App(tk.Tk):
         how = tk.StringVar(value="toast")
         opts = [("toast", "Import a Toast employee export (CSV)",
                  "Toast Web \u2192 Employees \u2192 Export. Brings names and jobs.")]
-        cfg = find_payroll_config()
-        if cfg:
-            opts.append(("payroll", "Copy from Stamhad Payroll", "Found on this computer. Wages aren't copied."))
-            how.set("payroll")
         opts += [("file", "Receive a file from another computer",
                   "A .stamhad file made with Settings \u2192 Data \u2192 Share files."),
                  ("manual", "I'll add them myself", "Opens Employees \u2192 + Add employee.")]
@@ -511,10 +507,7 @@ class App(tk.Tk):
             self.store.save_settings()
             choice = how.get()
             d.destroy()
-            if choice == "payroll" and cfg:
-                self._do_import(cfg)
-                self.go("Employees")
-            elif choice == "toast":
+            if choice == "toast":
                 self.go("Employees")
                 self.after(100, self.page_obj.import_toast)
             elif choice == "file":
@@ -527,28 +520,6 @@ class App(tk.Tk):
         d.buttons("Get started", start, "primary", cancel_text=None)
         d.protocol("WM_DELETE_WINDOW", start)
         d.show(focus=d)
-
-    def _do_import(self, cfg: Path):
-        try:
-            ne, np = self.store.import_from_payroll(cfg)
-        except Exception as ex:
-            messagebox.showerror("Import failed", str(ex), parent=self)
-            return
-        self.notice.show(f"Imported {ne} employees and {np} positions")
-        self.refresh()
-
-    def import_payroll_dialog(self):
-        cfg = find_payroll_config()
-        if not cfg:
-            d = filedialog.askdirectory(title="Select Stamhad Payroll 'config' folder", parent=self)
-            if not d:
-                return
-            cfg = Path(d)
-            if not (cfg / "employees.json").exists():
-                messagebox.showerror("Not found", "That folder has no employees.json.", parent=self)
-                return
-        self._do_import(cfg)
-
 
 
 def selftest() -> int:

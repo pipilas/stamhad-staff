@@ -42,7 +42,7 @@ Settings → Data:
 pip3 install -r requirements.txt   # optional: Toast download + PDF export
 python3 app.py                     # or double-click run_mac.command
 ```
-The first time it opens, it offers to copy your employees and positions from Stamhad Payroll. Wages are not copied.
+The first time it opens, a welcome screen asks how tips are split and how to add employees (Toast employee export, a file from another computer, or by hand).
 
 ## Layout
 The sidebar on the left has three sections. Each page shows one thing at a time, and details open in a side panel on the right (Esc closes it).

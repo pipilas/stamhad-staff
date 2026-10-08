@@ -3,6 +3,9 @@
 The release notes shown in the app's update window come from this file:
 the section whose heading matches the version being released.
 
+## 0.7.4
+- Removed the "Import from Stamhad Payroll" option (welcome screen, Employees and Settings)
+
 ## 0.7.3
 - Fixed: on Windows the update said the new version would open but it never did. Installed copies now hand the update to the installer directly, and the app only closes once the updater has really started
 
