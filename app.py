@@ -153,8 +153,13 @@ class App(tk.Tk):
         side.pack_propagate(False)
         top = tk.Frame(side, bg=BG_SIDE, padx=20, pady=20)
         top.pack(fill="x")
-        tk.Label(top, text="NUME", bg=BG_SIDE, fg="#FFFFFF", font=(FONT, 20, "bold")).pack(anchor="w")
-        tk.Label(top, text="powered by StamHad", bg=BG_SIDE, fg="#7EB8FF", font=(FONT, 9, "bold")).pack(anchor="w")
+        logo = logo_image(top, "dark")
+        if logo:
+            tk.Label(top, image=logo, bg=BG_SIDE, bd=0).pack(anchor="w")
+        else:
+            tk.Label(top, text="NUME", bg=BG_SIDE, fg="#FFFFFF", font=(FONT, 20, "bold")).pack(anchor="w")
+        tk.Label(top, text="powered by StamHad", bg=BG_SIDE, fg="#7EB8FF", font=(FONT, 9, "bold")).pack(
+            anchor="w", pady=(6, 0))
         self.nav_btns = {}
         n = 0
         for sec, items in NAV:

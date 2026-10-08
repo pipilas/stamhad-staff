@@ -119,8 +119,12 @@ class Gate:
         self.overlay = o
         card = tk.Frame(o, bg=BG_CARD, padx=36, pady=30)
         card.place(relx=0.5, rely=0.45, anchor="center")
-        tk.Label(card, text="NUME", bg=BG_CARD, fg=FG, font=(FONT, 24, "bold")).pack(anchor="w")
-        tk.Label(card, text="powered by StamHad", bg=BG_CARD, fg=ACCENT, font=(FONT, 10, "bold")).pack(anchor="w", pady=(0, 18))
+        logo = logo_image(card, "light")
+        if logo:
+            tk.Label(card, image=logo, bg=BG_CARD, bd=0).pack(anchor="w")
+        else:
+            tk.Label(card, text="NUME", bg=BG_CARD, fg=FG, font=(FONT, 24, "bold")).pack(anchor="w")
+        tk.Label(card, text="powered by StamHad", bg=BG_CARD, fg=ACCENT, font=(FONT, 10, "bold")).pack(anchor="w", pady=(8, 18))
         tk.Label(o, text=f"v{self.app.version}", bg=BG_SIDE, fg="#44506A", font=(FONT, 9)).place(
             relx=1.0, rely=1.0, anchor="se", x=-14, y=-10)
         return card

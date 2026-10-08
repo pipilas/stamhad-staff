@@ -3,8 +3,9 @@
 The release notes shown in the app's update window come from this file:
 the section whose heading matches the version being released.
 
-## 0.8.1
+## 0.8.2
 - New name: **NUME**, powered by StamHad. Your data, settings and sign-in stay exactly as they are
+- New logo and app icon
 - Fixed: signing in with the Stamhad Software admin account said "subscription not active"
 - Settings → Account → Manage customers: create restaurant accounts, set plan and paid-until, switch them on or off, right from the app
 

@@ -45,6 +45,21 @@ SHIFT_CLR = {"Morning": ("#FCD34D", "#78350F"),
 ICONS_DIR = Path(__file__).parent / "icons"
 
 
+def logo_image(master, variant="dark"):
+    """The NUME wordmark (icons/wordmark_dark.png on dark backgrounds, _light on white), or None."""
+    try:
+        p = ICONS_DIR / f"wordmark_{variant}.png"
+        if p.exists():
+            img = tk.PhotoImage(master=master, file=str(p))
+            refs = getattr(master, "_logo_refs", [])
+            refs.append(img)
+            master._logo_refs = refs
+            return img
+    except Exception:
+        pass
+    return None
+
+
 def set_window_icon(win):
     try:
         ico = ICONS_DIR / "icon.ico"
