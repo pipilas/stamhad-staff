@@ -108,6 +108,17 @@ s2.data["sub"]["paid_until"] = str(today + timedelta(days=5))
 s2.data["last_ok"] = (datetime.now() + timedelta(days=3)).isoformat()            # clock set backwards
 assert not s2.within_grace()
 
+# the admin (you) can always open the app, even without a Staff subscription
+fb2 = FakeFirebase(); fb2.install(A)
+fb2.add_user("me@stamhad.com", "adminpass", admin=True)
+sa = fresh()
+r = A.complete_sign_in(sa, "me@stamhad.com", "adminpass")
+assert r["state"] == "ok" and sa.data["is_admin"] is True, r
+cust = fb2.add_user("cust@example.com", "secret789")
+sc = fresh()
+assert A.complete_sign_in(sc, "cust@example.com", "secret789")["state"] == "locked" and sc.data["is_admin"] is False
+fb2.stop()
+
 # signing out forgets the token but keeps the email
 s2.sign_out()
 assert not s2.signed_in and s2.data["email"] == "rest@example.com"

@@ -31,7 +31,7 @@ FIREBASE = {
     "project_id": "stamhad-accounts",
 }
 APP_ID = "staff"
-APP_NAME = "Stamhad Staff"
+APP_NAME = "NUME"
 GRACE_DAYS = 7
 RECHECK_HOURS = 6
 SUPPORT_EMAIL = "stamhadsoftware@gmail.com"
@@ -193,7 +193,7 @@ class Session:
         return bool(self.data.get("refresh_token") and self.data.get("uid"))
 
     def sign_out(self):
-        keep = {"device": self.data.get("device"), "email": self.data.get("email", "")}
+        keep = {"device": self.data.get("device"), "email": self.data.get("email", "")}   # forgets is_admin too
         self.data = keep
         self.save()
 
@@ -240,12 +240,19 @@ def check(session: Session, version: str = "") -> dict:
         return {"state": "signed_out", "message": e.args[0]}
     session.data["refresh_token"] = tok["refresh_token"]
     uid, idt = tok["uid"], tok["id_token"]
+    try:
+        is_admin = db_get(f"admins/{uid}", idt) is True
+    except AuthError:
+        is_admin = False
+    session.data["is_admin"] = is_admin
     sub = db_get(f"subscriptions/{uid}/{APP_ID}", idt)
     try:
         acc = db_get(f"accounts/{uid}", idt) or {}
     except AuthError:
         acc = {}
     ok, why = evaluate(sub)
+    if is_admin:                        # you (Stamhad Software) can always open the app
+        ok, why = True, ""
     session.data["sub"] = sub or {}
     session.data["business"] = acc.get("business_name", "")
     _remember(session, "ok" if ok else "locked", why)

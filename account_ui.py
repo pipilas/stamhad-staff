@@ -119,8 +119,8 @@ class Gate:
         self.overlay = o
         card = tk.Frame(o, bg=BG_CARD, padx=36, pady=30)
         card.place(relx=0.5, rely=0.45, anchor="center")
-        tk.Label(card, text="Stamhad", bg=BG_CARD, fg=FG, font=(FONT, 22, "bold")).pack(anchor="w")
-        tk.Label(card, text="STAFF", bg=BG_CARD, fg=ACCENT, font=(FONT, 10, "bold")).pack(anchor="w", pady=(0, 18))
+        tk.Label(card, text="NUME", bg=BG_CARD, fg=FG, font=(FONT, 24, "bold")).pack(anchor="w")
+        tk.Label(card, text="powered by StamHad", bg=BG_CARD, fg=ACCENT, font=(FONT, 10, "bold")).pack(anchor="w", pady=(0, 18))
         tk.Label(o, text=f"v{self.app.version}", bg=BG_SIDE, fg="#44506A", font=(FONT, 9)).place(
             relx=1.0, rely=1.0, anchor="se", x=-14, y=-10)
         return card
@@ -238,7 +238,7 @@ class Gate:
     def show_locked(self, message=""):
         card = self._cover("locked")
         tk.Label(card, text="Subscription not active", bg=BG_CARD, fg=FG, font=(FONT, 16, "bold")).pack(anchor="w")
-        tk.Label(card, text=message or "This account can't use Stamhad Staff right now.", bg=BG_CARD, fg=DANGER,
+        tk.Label(card, text=message or "This account can't use NUME right now.", bg=BG_CARD, fg=DANGER,
                  font=(FONT, 11), wraplength=380, justify="left").pack(anchor="w", pady=(6, 4))
         tk.Label(card, text=f"To turn it back on, contact {acct.SUPPORT_EMAIL}.\n"
                             "Your data is safe on this computer.", bg=BG_CARD, fg=FG_SEC, font=(FONT, 10),
@@ -252,7 +252,7 @@ class Gate:
         tk.Label(card, text="Connect to the internet", bg=BG_CARD, fg=FG, font=(FONT, 16, "bold")).pack(anchor="w")
         lo = self.session.last_ok()
         when = f"The last check was on {lo:%B %d}. " if lo else ""
-        tk.Label(card, text=f"{when}Stamhad Staff works up to {acct.GRACE_DAYS} days without internet, then it "
+        tk.Label(card, text=f"{when}NUME works up to {acct.GRACE_DAYS} days without internet, then it "
                             "needs to check your subscription once.", bg=BG_CARD, fg=FG_SEC, font=(FONT, 11),
                  wraplength=380, justify="left").pack(anchor="w", pady=(6, 14))
         self._buttons(card)

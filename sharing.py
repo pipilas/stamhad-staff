@@ -41,7 +41,7 @@ def _data_paths(root: Path):
 
 
 def default_name() -> str:
-    return f"Stamhad Staff {_computer()} {datetime.now():%Y-%m-%d %H%M}{EXT}"
+    return f"NUME {_computer()} {datetime.now():%Y-%m-%d %H%M}{EXT}"
 
 
 # ── share ───────────────────────────────────────────────────────────────────
@@ -76,9 +76,9 @@ class Package:
             self.z = zipfile.ZipFile(self.path)
             self.man = json.loads(self.z.read("manifest.json"))
         except Exception as e:
-            raise ValueError(f"This isn't a Stamhad Staff file ({e}).") from e
+            raise ValueError(f"This isn't a NUME file ({e}).") from e
         if self.man.get("kind") != KIND:
-            raise ValueError("This file wasn't made by Stamhad Staff → Share files.")
+            raise ValueError("This file wasn't made by NUME → Share files.")
         self.files = {n[5:]: n for n in self.z.namelist() if n.startswith("data/") and n.endswith(".json")}
 
     def json(self, rel, default=None):

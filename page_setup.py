@@ -442,7 +442,7 @@ class SettingsPage:
         path = filedialog.asksaveasfilename(
             parent=self.app, title="Share files — save as", initialdir=str(start if start.exists() else Path.home()),
             initialfile=sharing.default_name(), defaultextension=sharing.EXT,
-            filetypes=[("Stamhad Staff data", "*" + sharing.EXT)])
+            filetypes=[("NUME data", "*" + sharing.EXT)])
         if not path:
             return
         try:
@@ -468,7 +468,7 @@ class SettingsPage:
     def receive_files(self):
         path = filedialog.askopenfilename(
             parent=self.app, title="Receive files",
-            filetypes=[("Stamhad Staff data", "*" + sharing.EXT), ("All files", "*.*")])
+            filetypes=[("NUME data", "*" + sharing.EXT), ("All files", "*.*")])
         if not path:
             return
         try:
@@ -764,11 +764,25 @@ class SettingsPage:
         Btn(row, "Change password\u2026", reset, "ghost", small=True).pack(side="left", padx=8)
 
         def out():
-            if messagebox.askyesno("Sign out", "Sign out of Stamhad Staff on this computer?\n\n"
+            if messagebox.askyesno("Sign out", "Sign out of NUME on this computer?\n\n"
                                    "Your data stays here. You'll need your email and password to sign in again.",
                                    parent=self.app):
                 gate.sign_out()
         Btn(row, "Sign out", out, "ghost", small=True).pack(side="left")
+        if gate.session.data.get("is_admin"):
+            b2 = self._card("Customers (admin)",
+                            "You're signed in with the Stamhad Software admin account. Create customer accounts, "
+                            "turn subscriptions on or off and set until when they're paid. Only admins see this.")
+            Btn(b2, "Manage customers\u2026", lambda: self.open_customers(gate), "primary", small=True).pack(anchor="w")
+
+    def open_customers(self, gate):
+        import admin_ui
+        w = getattr(self.app, "_customers_win", None)
+        if w is not None and w.winfo_exists():
+            w.lift()
+            w.focus_force()
+            return
+        self.app._customers_win = admin_ui.CustomersWindow(self.app, gate.session)
 
     def tab_data(self):
         # ── share / receive ───────────────────────────────────────────────

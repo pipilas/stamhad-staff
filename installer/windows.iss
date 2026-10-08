@@ -8,9 +8,9 @@
 
 [Setup]
 AppId={{6B1F7C2E-3D4A-4E8B-9C5D-7A2E1F0B3C48}
-AppName=Stamhad Staff
+AppName=NUME
 AppVersion={#AppVer}
-AppVerName=Stamhad Staff {#AppVer}
+AppVerName=NUME {#AppVer}
 AppPublisher=Stamhad Software
 AppPublisherURL=https://github.com/pipilas/stamhad-staff
 AppSupportURL=https://github.com/pipilas/stamhad-staff/releases
@@ -23,7 +23,7 @@ OutputDir=..\out
 OutputBaseFilename=StamhadStaff-Setup
 SetupIconFile=..\icons\icon.ico
 UninstallDisplayIcon={app}\StamhadStaff.exe
-UninstallDisplayName=Stamhad Staff
+UninstallDisplayName=NUME
 VersionInfoVersion={#AppVer}
 Compression=lzma2
 SolidCompression=yes
@@ -41,15 +41,20 @@ Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription:
 Source: "..\dist\StamhadStaff\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{autoprograms}\Stamhad Staff"; Filename: "{app}\StamhadStaff.exe"
-Name: "{autodesktop}\Stamhad Staff"; Filename: "{app}\StamhadStaff.exe"; Tasks: desktopicon
+Name: "{autoprograms}\NUME"; Filename: "{app}\StamhadStaff.exe"
+Name: "{autodesktop}\NUME"; Filename: "{app}\StamhadStaff.exe"; Tasks: desktopicon
 
 ; Your data (employees, schedule, hours, tips) is in %APPDATA%\StamhadStaff and is
 ; NOT removed by the uninstaller.
 
+[InstallDelete]
+; old shortcuts from before the rename to NUME
+Type: files; Name: "{autoprograms}\Stamhad Staff.lnk"
+Type: files; Name: "{autodesktop}\Stamhad Staff.lnk"
+
 [Run]
 ; normal install: offer to open the app at the end
-Filename: "{app}\StamhadStaff.exe"; Description: "Open Stamhad Staff"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\StamhadStaff.exe"; Description: "Open NUME"; Flags: nowait postinstall skipifsilent
 ; in-app update (silent, started with /UPDATE=1): reopen the app by itself
 Filename: "{app}\StamhadStaff.exe"; Flags: nowait; Check: IsAppUpdate
 

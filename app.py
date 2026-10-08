@@ -66,7 +66,7 @@ class App(tk.Tk):
     def __init__(self, store: Store | None = None):
         super().__init__()
         self.withdraw()
-        self.title(f"Stamhad Staff v{VERSION}")
+        self.title(f"NUME — powered by StamHad   v{VERSION}")
         self.configure(bg=BG_PAGE)
         self.minsize(1080, 700)
         set_window_icon(self)
@@ -153,8 +153,8 @@ class App(tk.Tk):
         side.pack_propagate(False)
         top = tk.Frame(side, bg=BG_SIDE, padx=20, pady=20)
         top.pack(fill="x")
-        tk.Label(top, text="Stamhad", bg=BG_SIDE, fg="#FFFFFF", font=(FONT, 17, "bold")).pack(anchor="w")
-        tk.Label(top, text="STAFF", bg=BG_SIDE, fg="#7EB8FF", font=(FONT, 10, "bold")).pack(anchor="w")
+        tk.Label(top, text="NUME", bg=BG_SIDE, fg="#FFFFFF", font=(FONT, 20, "bold")).pack(anchor="w")
+        tk.Label(top, text="powered by StamHad", bg=BG_SIDE, fg="#7EB8FF", font=(FONT, 9, "bold")).pack(anchor="w")
         self.nav_btns = {}
         n = 0
         for sec, items in NAV:
@@ -485,8 +485,8 @@ class App(tk.Tk):
         self.store.save_employees()
         self.store.save_settings()
         st = self.store.settings
-        d = Dialog(self, "Welcome to Stamhad Staff", width=600)
-        tk.Label(d.body, text="Welcome to Stamhad Staff \U0001F44B", bg=BG_PAGE, fg=FG,
+        d = Dialog(self, "Welcome to NUME", width=600)
+        tk.Label(d.body, text="Welcome to NUME \U0001F44B", bg=BG_PAGE, fg=FG,
                  font=(FONT, 18, "bold")).pack(anchor="w")
         tk.Label(d.body, text="Two quick choices and you're ready. You can change both later.",
                  bg=BG_PAGE, fg=FG_SEC, font=(FONT, 11)).pack(anchor="w", pady=(2, 14))
@@ -545,7 +545,7 @@ def selftest() -> int:
     out = Path.home() / "stamhad-staff-selftest.txt"
     try:
         for m in ("core", "store", "ui", "toast", "quick", "inventory", "exports", "applog", "updater",
-                  "update_ui", "sharing", "account", "account_ui", "page_help", "page_home", "page_day", "page_schedule", "page_week",
+                  "update_ui", "sharing", "account", "account_ui", "admin_ui", "page_help", "page_home", "page_day", "page_schedule", "page_week",
                   "page_inventory", "page_setup", "paramiko", "reportlab.platypus", "certifi"):
             importlib.import_module(m)
         r = tk.Tk()

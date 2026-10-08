@@ -2,7 +2,7 @@
 """PyInstaller build for Stamhad Staff.
 Windows -> dist/StamhadStaff.exe (one file, portable)
            set STAMHAD_ONEDIR=1 -> dist/StamhadStaff/ (program folder, used by the installer)
-macOS   -> dist/Stamhad Staff.app
+macOS   -> dist/NUME.app
 Build:  pyinstaller stamhad_staff.spec --clean --noconfirm
 """
 import os
@@ -27,7 +27,7 @@ for pkg in ("paramiko", "nacl", "bcrypt", "cryptography", "cffi", "certifi"):
 hidden += collect_submodules("reportlab")
 # app modules (pages are imported lazily, so list them all)
 hidden += ["core", "store", "ui", "toast", "quick", "inventory", "exports", "applog", "updater",
-           "update_ui", "sharing", "account", "account_ui", "page_help", "page_home", "page_day", "page_schedule", "page_week",
+           "update_ui", "sharing", "account", "account_ui", "admin_ui", "page_help", "page_home", "page_day", "page_schedule", "page_week",
            "page_inventory", "page_setup"]
 
 a = Analysis(
@@ -74,12 +74,12 @@ else:
     coll = COLLECT(exe, a.binaries, a.datas, upx=False, name="StamhadStaff")
     app = BUNDLE(
         coll,
-        name="Stamhad Staff.app",
+        name="NUME.app",
         icon=os.path.join(SPEC_DIR, "icons", "icon.icns"),
         bundle_identifier="com.stamhad.staff",
         info_plist={
-            "CFBundleName": "Stamhad Staff",
-            "CFBundleDisplayName": "Stamhad Staff",
+            "CFBundleName": "NUME",
+            "CFBundleDisplayName": "NUME",
             "CFBundleVersion": VERSION,
             "CFBundleShortVersionString": VERSION,
             "NSHighResolutionCapable": True,

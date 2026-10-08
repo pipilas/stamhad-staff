@@ -32,7 +32,7 @@ from pathlib import Path
 REPO = "pipilas/stamhad-staff"
 API_LATEST = f"https://api.github.com/repos/{REPO}/releases/latest"
 RELEASES_PAGE = f"https://github.com/{REPO}/releases/latest"
-APP_NAME = "Stamhad Staff"
+APP_NAME = "NUME"
 EXE_NAME = "StamhadStaff.exe"
 SUMS_NAME = "SHA256SUMS.txt"
 IS_MAC = platform.system() == "Darwin"
@@ -168,7 +168,7 @@ def install_target() -> tuple[str, Path | None, str]:
         app = Path(sys.executable).resolve().parents[2]          # X.app/Contents/MacOS/X
         s = str(app)
         if "AppTranslocation" in s or s.startswith("/Volumes/"):
-            return "mac", app, ("The app is running from the download / disk image. Drag Stamhad Staff "
+            return "mac", app, ("The app is running from the download / disk image. Drag NUME "
                                 "into the Applications folder, open it from there, then update.")
         return "mac", app, ("" if _writable(app.parent) else f"Can't write to {app.parent}")
     return "source", None, "Updates are only for the Windows and Mac apps."

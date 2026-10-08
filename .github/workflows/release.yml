@@ -139,23 +139,23 @@ jobs:
         run: pyinstaller stamhad_staff.spec --clean --noconfirm
       - name: Sign (ad-hoc) so macOS doesn't call it damaged
         run: |
-          codesign --force --deep --sign - "dist/Stamhad Staff.app"
-          codesign --verify --deep --strict --verbose=1 "dist/Stamhad Staff.app"
+          codesign --force --deep --sign - "dist/NUME.app"
+          codesign --verify --deep --strict --verbose=1 "dist/NUME.app"
       - name: Self-test the built app
         run: |
-          "dist/Stamhad Staff.app/Contents/MacOS/StamhadStaff" --selftest & pid=$!
+          "dist/NUME.app/Contents/MacOS/StamhadStaff" --selftest & pid=$!
           for i in $(seq 1 120); do kill -0 $pid 2>/dev/null || break; sleep 1; done
           if kill -0 $pid 2>/dev/null; then kill $pid; echo "self-test hung"; exit 1; fi
           wait $pid; rc=$?
           cat ~/stamhad-staff-selftest.txt; exit $rc
       - name: Make the .dmg
         run: |
-          mkdir -p out dmg && cp -R "dist/Stamhad Staff.app" dmg/ && ln -s /Applications dmg/Applications
-          hdiutil create -volname "Stamhad Staff" -srcfolder dmg -ov -format UDZO "out/StamhadStaff-$V-mac.dmg"
+          mkdir -p out dmg && cp -R "dist/NUME.app" dmg/ && ln -s /Applications dmg/Applications
+          hdiutil create -volname "NUME" -srcfolder dmg -ov -format UDZO "out/StamhadStaff-$V-mac.dmg"
           hdiutil verify "out/StamhadStaff-$V-mac.dmg"
       - name: Make the .pkg installer
         run: |
-          mkdir -p pkgroot && cp -R "dist/Stamhad Staff.app" pkgroot/
+          mkdir -p pkgroot && cp -R "dist/NUME.app" pkgroot/
           pkgbuild --analyze --root pkgroot comp.plist
           /usr/libexec/PlistBuddy -c "Set :0:BundleIsRelocatable false" comp.plist
           pkgbuild --root pkgroot --component-plist comp.plist --identifier com.stamhad.staff \
@@ -165,7 +165,7 @@ jobs:
       - name: Test the .pkg (install, owner, run)
         run: |
           sudo installer -pkg "out/StamhadStaff-$V-mac.pkg" -target /
-          APP="/Applications/Stamhad Staff.app"
+          APP="/Applications/NUME.app"
           test -d "$APP" || { echo "not installed"; exit 1; }
           ls -ld "$APP"; owner=$(stat -f %Su "$APP"); echo "owner=$owner console=$(stat -f %Su /dev/console)"
           if [ "$owner" = "root" ]; then echo "::warning::app is owned by root (no console user on this runner?)"; fi
@@ -175,7 +175,7 @@ jobs:
           wait $pid; rc=$?; cat ~/stamhad-staff-selftest.txt; exit $rc
       - name: Test a REAL in-app update (app quits, helper swaps it, app reopens)
         run: |
-          APP="/Applications/Stamhad Staff.app"
+          APP="/Applications/NUME.app"
           DATA="$HOME/Library/Application Support/StamhadStaff"
           RES="$DATA/update-result.json"; rm -f "$RES"
           # failures are copied into the run summary (public), so they can be read without signing in
@@ -191,8 +191,8 @@ jobs:
           cat "$DATA/logs/update.log" || true
           grep -q '"status": "ok"' "$RES" || fail "in-app update didn't finish"
           sleep 5
-          pgrep -fl "Stamhad Staff.app" || fail "app wasn't reopened after the update"
-          pkill -f "Stamhad Staff.app" || true
+          pgrep -fl "NUME.app" || fail "app wasn't reopened after the update"
+          pkill -f "NUME.app" || true
           echo "in-app update OK"
       - uses: actions/upload-artifact@v4
         with:
@@ -231,7 +231,7 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ needs.check.outputs.version }}
-          name: Stamhad Staff ${{ needs.check.outputs.version }}
+          name: NUME ${{ needs.check.outputs.version }}
           body_path: notes.md
           files: |
             out/StamhadStaff-Setup.exe

@@ -17,3 +17,4 @@ preset.json
 keys/
 backups/
 logs/
+.tmp_out/

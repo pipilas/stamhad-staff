@@ -54,7 +54,7 @@ def manual_check(app, on_done=None):
 def ask(app, info, manual=False):
     kind, _, problem = updater.install_target()
     d = Dialog(app, "Update available", width=500)
-    tk.Label(d.body, text=f"Stamhad Staff {info['version']} is available", bg=BG_PAGE, fg=FG,
+    tk.Label(d.body, text=f"NUME {info['version']} is available", bg=BG_PAGE, fg=FG,
              font=(FONT, 15, "bold")).pack(anchor="w")
     tk.Label(d.body, text=f"You have {app.version}. Your data is kept — it's backed up before updating.",
              bg=BG_PAGE, fg=FG_SEC, font=(FONT, 10)).pack(anchor="w", pady=(2, 10))

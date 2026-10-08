@@ -16,7 +16,7 @@ from ui import *  # noqa: F401,F403
 TOPICS = [
     ("start", "\U0001F44B", "Getting started", """
 A new install starts **empty**. A welcome screen asks how tips are split and how to bring in your employees (Toast export, a file from another computer, or by hand).
-Stamhad Staff keeps your **employees**, the **weekly schedule**, **hours & tips** and **inventory**. There's no payroll: at the end of the week it gives you **hours worked** and **total tips** for each person.
+**NUME** (powered by StamHad) keeps your **employees**, the **weekly schedule**, **hours & tips** and **inventory**. There's no payroll: at the end of the week it gives you **hours worked** and **total tips** for each person.
 Everything is saved automatically the moment you change it. There's no Save button except in Settings.
 ## The sidebar
 - **Home**: today at a glance. Who's working, hours and tips today, the week so far, supplies that are due, and anything that needs fixing. Click any card to go there.
@@ -37,7 +37,7 @@ Download the latest version from GitHub: **github.com/pipilas/stamhad-staff → 
 1. Download **StamhadStaff-Setup.exe** and double-click it. If SmartScreen warns, click **More info → Run anyway** (the app isn't signed by Microsoft).
 2. Click through the steps. You can tick **Create a desktop shortcut**.
 3. It installs into your user's programs folder (%LOCALAPPDATA%\\Programs\\Stamhad Staff). No administrator password is needed, so updates can install themselves too.
-4. Open it from the **Start menu** or the desktop shortcut. To remove it: **Settings → Apps → Stamhad Staff → Uninstall**. Your data is kept.
+4. Open it from the **Start menu** or the desktop shortcut. To remove it: **Settings → Apps → NUME → Uninstall**. Your data is kept.
 ## Windows: without installing
 **StamhadStaff-<version>-portable.exe** is one file you can run from anywhere, like a USB stick. Keep it out of Downloads.
 ## Mac: installer (M1 or newer)
@@ -45,7 +45,7 @@ Download the latest version from GitHub: **github.com/pipilas/stamhad-staff → 
 2. Double-click it. If macOS blocks it: **System Settings → Privacy & Security → Open Anyway**, then open it again.
 3. Click through the steps (it asks for your Mac password). The app goes into **Applications**.
 ## Mac: disk image
-Or download the **.dmg**, open it, and drag **Stamhad Staff** into **Applications**.
+Or download the **.dmg**, open it, and drag **NUME** into **Applications**.
 ! Always open the app from **Applications** (Mac) or the **Start menu** (Windows), not from the download, so updates can replace it.
 ## Where is my data?
 Your data is in its own folder, separate from the app, so updating or reinstalling never touches it:
@@ -158,7 +158,7 @@ Open a .stamhad file. It shows what's in it compared with this computer, **backs
 3. The fixed data comes back the same way: **Receive files → Sync** (or Replace).
 """),
     ("account", "\U0001F511", "Account & subscription", """
-Stamhad Staff needs a **Stamhad account**: the email and password you got from Stamhad Software.
+NUME needs a **Stamhad account**: the email and password you got from Stamhad Software.
 ## Signing in
 - The app asks once on each computer, then remembers you. Your password is **not** saved on the computer.
 - **Forgot password?** on the sign-in screen sends you an email to set a new one.
