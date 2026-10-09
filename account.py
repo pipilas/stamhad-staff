@@ -152,6 +152,77 @@ def db_patch(path, data, id_token):
     return _request("PATCH", _db_url(path, id_token), data)
 
 
+# ── Firestore (the phone app's database) ─────────────────────────────────────
+FIRESTORE_BASE = "https://firestore.googleapis.com/v1"
+
+
+def _fs_value(v):
+    if v is None:
+        return {"nullValue": None}
+    if isinstance(v, bool):
+        return {"booleanValue": v}
+    if isinstance(v, int):
+        return {"integerValue": str(v)}
+    if isinstance(v, float):
+        return {"doubleValue": v}
+    if isinstance(v, dict):
+        return {"mapValue": {"fields": {k: _fs_value(x) for k, x in v.items()}}}
+    if isinstance(v, (list, tuple)):
+        return {"arrayValue": {"values": [_fs_value(x) for x in v]}}
+    return {"stringValue": str(v)}
+
+
+def fs_patch(path, fields: dict, id_token):
+    """Set these top-level fields of a Firestore document (creates it if missing)."""
+    mask = "&".join("updateMask.fieldPaths=" + urllib.parse.quote(k) for k in fields)
+    url = (f"{FIRESTORE_BASE}/projects/{FIREBASE['project_id']}/databases/(default)/documents/{path}?{mask}")
+    data = json.dumps({"fields": {k: _fs_value(v) for k, v in fields.items()}}).encode("utf-8")
+    req = urllib.request.Request(url, data=data, method="PATCH",
+                                 headers={"Content-Type": "application/json", "Authorization": f"Bearer {id_token}"})
+    try:
+        with urllib.request.urlopen(req, timeout=12, context=_ctx()) as r:
+            return json.loads(r.read().decode("utf-8") or "null")
+    except urllib.error.HTTPError as e:
+        try:
+            msg = json.loads(e.read().decode("utf-8")).get("error", {}).get("message", "")
+        except Exception:
+            msg = ""
+        raise AuthError("FIRESTORE", f"Phone app database: {msg or e.code}")
+    except (urllib.error.URLError, socket.timeout, TimeoutError, ConnectionError, OSError) as e:
+        raise Offline(str(getattr(e, "reason", e)))
+
+
+def mirror_subscription(uid: str, business_name: str, sub: dict | None, id_token: str):
+    """Admin: copy the Staff subscription to restaurants/{uid} so the NUME phone app
+    (and its security rules) know whether this restaurant may use it."""
+    sub = sub or {}
+    s = {"active": bool(sub.get("active")), "plan": sub.get("plan") or ""}
+    pu = sub.get("paid_until")
+    if pu:
+        s["paidUntil"] = {"__ts__": f"{str(pu)[:10]}T23:59:59-05:00"}
+    fields = {"ownerUid": uid, "subscription": s}
+    if business_name:
+        fields["name"] = business_name
+    body = {k: _fs_value(v) for k, v in fields.items()}
+    if pu:
+        body["subscription"]["mapValue"]["fields"]["paidUntil"] = {"timestampValue": s["paidUntil"]["__ts__"]}
+    mask = "&".join("updateMask.fieldPaths=" + k for k in fields)
+    url = f"{FIRESTORE_BASE}/projects/{FIREBASE['project_id']}/databases/(default)/documents/restaurants/{uid}?{mask}"
+    req = urllib.request.Request(url, data=json.dumps({"fields": body}).encode("utf-8"), method="PATCH",
+                                 headers={"Content-Type": "application/json", "Authorization": f"Bearer {id_token}"})
+    try:
+        with urllib.request.urlopen(req, timeout=12, context=_ctx()) as r:
+            r.read()
+    except urllib.error.HTTPError as e:
+        try:
+            msg = json.loads(e.read().decode("utf-8")).get("error", {}).get("message", "")
+        except Exception:
+            msg = ""
+        raise AuthError("FIRESTORE", f"Phone app database: {msg or e.code}")
+    except (urllib.error.URLError, socket.timeout, TimeoutError, ConnectionError, OSError) as e:
+        raise Offline(str(getattr(e, "reason", e)))
+
+
 # ── the rule: may this account use this app today? ────────────────────────────
 def evaluate(sub: dict | None, today: date | None = None) -> tuple[bool, str]:
     today = today or date.today()

@@ -1,0 +1,184 @@
+rules_version = '2';
+
+// NUME — Firestore security rules (one database for every restaurant).
+//
+//   admins/{uid}                         Stamhad Software (set in the console)
+//   users/{uid}            {lastRid}     the restaurant this login opened last
+//     restaurants/{rid}    {name, role}  every restaurant this login belongs to (one person can
+//                                        work in several restaurants with the same login)
+//   invites/{email}/rids/{rid}  {rid, name}  "you're invited to these restaurants"
+//   restaurants/{rid}      {name, ownerUid, subscription{active, paidUntil, plan}}
+//     members/{uid}        {role: owner|manager|employee, employeeId, name, email, positions[], canInventory}
+//     invites/{email}      {employeeId, role, name, positions[], canInventory}   (what they join as)
+//     days/{date}          {tips: {shift: {floor, bar}}}                        (managers' daily totals)
+//     employees/{id}       {name, positions[], active, uid?, email?}
+//     shifts/{id}          {week, date, employeeId, employeeName, position, shift, start, end, note}
+//     timeoff/{id}         {uid, employeeId, employeeName, from, to, note, status, decidedBy...}
+//     tips/{eid_week}      {employeeId, week, days{date: {hours, tips}}}        (written by the desktop)
+//     settings/{doc}       inventory{positions[]}, schedule{defaultTimes}, positions{list}, tips{method,...}
+//     items/{id}           inventory items
+//     cart/{id}            one line someone added to the order list {itemId, qty, byUid, byName, at}
+//     orders/{id}          placed orders (keep who added what)
+//
+// Nobody can read or change a restaurant's data unless its subscription is active.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function uid() { return request.auth.uid; }
+    function isAdmin() {
+      return signedIn() && exists(/databases/$(database)/documents/admins/$(uid()));
+    }
+    function memberPath(rid) {
+      return /databases/$(database)/documents/restaurants/$(rid)/members/$(uid());
+    }
+    function joined(rid) { return signedIn() && exists(memberPath(rid)); }
+    function me(rid) { return get(memberPath(rid)).data; }
+    function active(rid) {
+      let s = get(/databases/$(database)/documents/restaurants/$(rid)).data.get('subscription', {});
+      return s.get('active', false) == true
+        && (s.get('paidUntil', null) == null || s.get('paidUntil', null) > request.time);
+    }
+    function isMember(rid) { return joined(rid) && (active(rid) || isAdmin()); }   // Stamhad Software can always test
+    function isManager(rid) { return isMember(rid) && me(rid).role in ['owner', 'manager']; }
+    function myEmployee(rid) { return me(rid).get('employeeId', ''); }
+    function inventoryPositions(rid) {
+      let p = /databases/$(database)/documents/restaurants/$(rid)/settings/inventory;
+      return exists(p) ? get(p).data.get('positions', []) : [];
+    }
+    function myEmail() { return request.auth.token.email; }
+    function invitePath(rid) {
+      return /databases/$(database)/documents/restaurants/$(rid)/invites/$(myEmail());
+    }
+    function invitedTo(rid) {
+      return signedIn() && request.auth.token.get('email', null) != null && exists(invitePath(rid));
+    }
+    // what an invited person may create for themselves: exactly what the invite says
+    function matchesInvite(rid, d) {
+      let inv = get(invitePath(rid)).data;
+      return d.role == inv.role
+        && d.get('employeeId', '') == inv.get('employeeId', '')
+        && d.get('positions', []) == inv.get('positions', [])
+        && d.get('canInventory', false) == inv.get('canInventory', false);
+    }
+    function canAddInventory(rid) {
+      let m = me(rid);
+      return isMember(rid) && (
+        m.role in ['owner', 'manager']
+        || m.get('canInventory', false) == true
+        || m.get('positions', []).hasAny(inventoryPositions(rid)));
+    }
+
+    match /admins/{u} {
+      allow read: if signedIn() && uid() == u;
+      allow write: if false;
+    }
+
+    // "you're invited" pointers, readable by that email
+    match /invites/{email}/rids/{r} {
+      allow read: if (signedIn() && myEmail() == email) || isManager(r);
+      allow create, update: if isManager(r);
+      allow delete: if (signedIn() && myEmail() == email) || isManager(r);
+    }
+
+    match /users/{u} {
+      allow read, write: if signedIn() && uid() == u;
+
+      // the restaurants this login belongs to
+      match /restaurants/{r} {
+        allow read: if signedIn() && (uid() == u || isManager(r));
+        allow create: if signedIn() && uid() == u && (r == u || invitedTo(r) || joined(r));
+        allow update: if signedIn() && uid() == u;
+        allow delete: if signedIn() && (uid() == u || isManager(r));
+      }
+    }
+
+    match /restaurants/{rid} {
+      allow read: if isAdmin() || joined(rid) || (signedIn() && uid() == rid);
+      allow create: if isAdmin() || (signedIn() && uid() == rid
+        && request.resource.data.ownerUid == rid
+        && !('subscription' in request.resource.data));
+      allow update: if isAdmin() || (isManager(rid)
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['subscription', 'ownerUid']));
+      allow delete: if isAdmin();
+
+      match /members/{m} {
+        allow read: if (joined(rid) && m == uid()) || isManager(rid);
+        allow create: if (signedIn() && uid() == rid && m == rid && request.resource.data.role == 'owner')
+          || (signedIn() && m == uid() && invitedTo(rid) && matchesInvite(rid, request.resource.data))
+          || (isManager(rid) && request.resource.data.role in ['manager', 'employee']);
+        allow update: if isManager(rid)
+          && (resource.data.role != 'owner' || me(rid).role == 'owner')
+          && (request.resource.data.role == resource.data.role || request.resource.data.role in ['manager', 'employee'])
+          && (resource.data.role != 'owner' || request.resource.data.role == 'owner');
+        allow delete: if isManager(rid) && resource.data.role != 'owner';
+      }
+
+      match /invites/{email} {
+        allow read: if isManager(rid) || (signedIn() && myEmail() == email);
+        allow create, update: if isManager(rid) && request.resource.data.role in ['manager', 'employee'];
+        allow delete: if isManager(rid) || (signedIn() && myEmail() == email);
+      }
+
+      match /days/{d} {
+        allow read, write: if isManager(rid);
+      }
+
+      match /employees/{e} {
+        allow read: if isMember(rid);
+        allow write: if isManager(rid);
+      }
+
+      match /shifts/{s} {
+        allow read: if isMember(rid);
+        allow write: if isManager(rid);
+      }
+
+      match /settings/{d} {
+        allow read: if isMember(rid);
+        allow write: if isManager(rid);
+      }
+
+      match /timeoff/{t} {
+        allow read: if isManager(rid) || (isMember(rid) && resource.data.uid == uid());
+        allow create: if isMember(rid)
+          && request.resource.data.uid == uid()
+          && request.resource.data.employeeId == myEmployee(rid)
+          && request.resource.data.status == 'pending';
+        allow update: if isManager(rid)
+          || (isMember(rid) && resource.data.uid == uid() && resource.data.status == 'pending'
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+              && request.resource.data.status == 'cancelled');
+        allow delete: if isManager(rid);
+      }
+
+      match /tips/{t} {
+        allow read: if isManager(rid) || (isMember(rid) && resource.data.employeeId == myEmployee(rid));
+        allow write: if isManager(rid);
+      }
+
+      match /items/{i} {
+        allow read: if isMember(rid);
+        allow create: if canAddInventory(rid);
+        allow update, delete: if isManager(rid);
+      }
+
+      match /cart/{c} {
+        allow read: if isMember(rid);
+        allow create: if canAddInventory(rid)
+          && request.resource.data.byUid == uid()
+          && request.resource.data.at == request.time;
+        allow update: if isManager(rid)
+          || (canAddInventory(rid) && resource.data.byUid == uid()
+              && request.resource.data.byUid == uid() && request.resource.data.at == resource.data.at);
+        allow delete: if isManager(rid) || (isMember(rid) && resource.data.byUid == uid());
+      }
+
+      match /orders/{o} {
+        allow read: if isMember(rid);
+        allow write: if isManager(rid);
+      }
+    }
+  }
+}

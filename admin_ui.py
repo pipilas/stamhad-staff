@@ -218,6 +218,9 @@ class CustomersMixin:
                     A.db_put(f"subscriptions/{uid}/{app}", {"active": True, "plan": plan.get(),
                                                            "paid_until": pu or None,
                                                            "updated_at": datetime.now().isoformat(timespec="seconds")}, t)
+                if "staff" in chosen:            # the NUME phone app reads it from Firestore
+                    A.mirror_subscription(uid, vals["business_name"],
+                                          {"active": True, "plan": plan.get(), "paid_until": pu or None}, t)
                 return uid
 
             def done(uid, ex):
@@ -327,6 +330,8 @@ class CustomersMixin:
                 A.db_patch(f"accounts/{uid}", acc, t)
                 for app, sub in new_subs.items():
                     A.db_put(f"subscriptions/{uid}/{app}", sub, t)
+                if "staff" in new_subs:          # keep the NUME phone app in step
+                    A.mirror_subscription(uid, acc.get("business_name", ""), new_subs["staff"], t)
 
             def done(_, ex):
                 if ex:

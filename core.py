@@ -118,6 +118,55 @@ def fmt_time(mins: int | None) -> str:
     return f"{h12}:{m:02d} {ap}"
 
 
+def _ambiguous(s) -> int | None:
+    """'4', '4:30', '430', '12' (no AM/PM, 1-12, no leading zero) -> the hour; else None."""
+    s = str(s or "").strip().replace(".", "")
+    m = _TIME_RE.match(s)
+    if not m or m.group(3) or m.group(1).startswith("0"):
+        return None
+    h = int(m.group(1))
+    return h if 1 <= h <= 12 else None
+
+
+def smart_time(s, after=None, near=None, start=False) -> str:
+    """Like norm_time, but a time typed without AM/PM gets the sensible half of the day.
+    after: the shift's start (minutes or text) -> pick the end that comes soonest after it
+           (start 4 PM, end '11' -> 11 PM;  start 5 PM, end '2' -> 2 AM).
+    near:  the usual time for this field (e.g. the shift's usual start) -> pick the closer one.
+    start: it's a clock-in / shift start -> never guess 12:00-4:59 AM (type '4a' if you mean it).
+    Neither: 6-11 -> AM, 12-5 -> PM (nobody starts a shift at 4 AM).
+    '4a' / '4 pm' / '16:00' / '04:00' are always taken as typed."""
+    m = parse_time(s)
+    if m is None:
+        return ""
+    h = _ambiguous(s)
+    if h is None:
+        return fmt_time(m)
+    mi = m % 60
+    am = (0 if h == 12 else h) * 60 + mi
+    pm = (12 if h == 12 else h + 12) * 60 + mi
+    if isinstance(after, str):
+        after = parse_time(after)
+    if isinstance(near, str):
+        near = parse_time(near)
+    if after is not None:
+        def gap(c):
+            d = (c - after) % 1440
+            return d or 1440
+        return fmt_time(min((am, pm), key=gap))
+    cands = (am, pm)
+    if start:
+        cands = tuple(c for c in cands if c >= 5 * 60) or cands
+        if len(cands) == 1:
+            return fmt_time(cands[0])
+    if near is not None:
+        def dist(c):
+            d = abs(c - near) % 1440
+            return min(d, 1440 - d)
+        return fmt_time(min(cands, key=dist))
+    return fmt_time(am if 6 <= h <= 11 else pm)
+
+
 def norm_time(s) -> str:
     """Normalise user text to '4:05 PM' (or '' if blank/invalid)."""
     return fmt_time(parse_time(s))

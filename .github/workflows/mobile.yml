@@ -1,0 +1,63 @@
+name: Mobile app
+
+# Builds and tests the NUME phone app (mobile/) and its database rules.
+# Runs when something in mobile/ changes. Nothing is published.
+
+on:
+  push:
+    branches: [main]
+    paths: ["mobile/**", ".github/workflows/mobile.yml"]
+  workflow_dispatch:
+
+jobs:
+  rules:
+    name: Database rules tests
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: mobile/firebase } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "20" }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "21" }
+      - run: npm install --no-audit --no-fund
+      - run: npm test
+
+  android:
+    name: Android (analyze, test, APK)
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: mobile } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "17" }
+      - uses: subosito/flutter-action@v2
+        with: { channel: stable, cache: true }
+      - run: flutter --version
+      - name: Create platform folders
+        run: bash tool/setup_platforms.sh
+      - run: flutter analyze --no-fatal-infos --no-fatal-warnings
+      - run: flutter test
+      - run: flutter build apk --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NUME-android-apk
+          path: mobile/build/app/outputs/flutter-apk/app-release.apk
+
+  ios:
+    name: iOS (simulator build)
+    runs-on: macos-latest
+    defaults: { run: { working-directory: mobile } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with: { channel: stable, cache: true }
+      - name: Create platform folders
+        run: bash tool/setup_platforms.sh
+      - run: flutter build ios --simulator --debug
+      - name: Zip the simulator app
+        run: cd build/ios/iphonesimulator && zip -qr ../../../NUME-simulator.zip Runner.app
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NUME-ios-simulator
+          path: mobile/NUME-simulator.zip

@@ -355,11 +355,29 @@ def install_field_behaviour(root):
         w = ev.widget
         try:
             if str(w.cget("state")) == "normal":
+                w._fresh_focus = True
                 w.after_idle(lambda: _select_all(w))
         except tk.TclError:
             pass
 
     root.bind_class("Entry", "<FocusIn>", focus_in, add="+")
+
+    def click_release(ev):
+        # clicking into a field: the click itself puts the cursor where you clicked and
+        # undoes the select-all, so select everything again once the button is released
+        # (unless you dragged to select part of the text on purpose)
+        w = ev.widget
+        if not getattr(w, "_fresh_focus", False):
+            return
+        w._fresh_focus = False
+        try:
+            if not w.selection_present():
+                _select_all(w)
+        except tk.TclError:
+            pass
+
+    root.bind_class("Entry", "<ButtonRelease-1>", click_release, add="+")
+    root.bind_class("Entry", "<KeyPress>", lambda ev: setattr(ev.widget, "_fresh_focus", False), add="+")
 
     def type_ahead(ev):
         w = ev.widget
@@ -618,6 +636,30 @@ class Inp(tk.Entry):
     def set(self, v):
         self.delete(0, "end")
         self.insert(0, "" if v is None else str(v))
+
+
+def smart_time_field(w, ctx=None):
+    """When the field is left, '4' becomes '4:00 PM' etc. (see core.smart_time).
+    ctx() returns the hints for this field: after=, near=, start=."""
+    from core import smart_time
+
+    def fix(_=None):
+        raw = w.get().strip()
+        v = smart_time(raw, **(ctx() if ctx else {}))
+        if raw and v and v != raw:
+            w.delete(0, "end")
+            w.insert(0, v)
+    w.smart_fix = fix
+    w.bind("<FocusOut>", fix, add="+")
+    return w
+
+
+def fix_times(widgets):
+    """Apply the smart AM/PM to these fields now (call before saving)."""
+    for w in widgets:
+        f = getattr(w, "smart_fix", None)
+        if f:
+            f()
 
 
 class Card(tk.Frame):

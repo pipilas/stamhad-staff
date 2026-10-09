@@ -567,11 +567,13 @@ class SettingsPage:
                 e0 = Inp(b, width=10)
                 e0.set((st.get("tip_start_time") or {}).get(sh) or "")
                 e0.grid(row=i, column=1, sticky="w", padx=10, ipady=3)
-                sst[sh] = e0
+                sst[sh] = smart_time_field(e0, lambda sh=sh: {"near": (st["default_times"].get(sh) or [""])[0] or None,
+                                                              "start": True})
                 e = Inp(b, width=10)
                 e.set(st["full_share_time"].get(sh) or "")
                 e.grid(row=i, column=2, sticky="w", padx=10, ipady=3)
-                fst[sh] = e
+                fst[sh] = smart_time_field(e, lambda sh=sh, e0=e0: {
+                    "after": e0.get() or (st["default_times"].get(sh) or [""])[0] or None})
         b2 = self._card("Brunch days", "On these days the day shift is called Brunch instead of Morning.")
         bvars = {}
         for d in DAYS:
@@ -584,8 +586,10 @@ class SettingsPage:
         cut = Inp(b3, width=10)
         cut.set(st.get("day_shift_cutoff", "2:00 PM"))
         cut.pack(anchor="w", ipady=3)
+        smart_time_field(cut, lambda: {"near": "2:00 PM"})
 
         def save():
+            fix_times(list(sst.values()) + list(fst.values()) + [cut])
             bad = [e.get() for e in list(fst.values()) + list(sst.values()) + [cut] if e.get().strip() and not norm_time(e.get())]
             if bad:
                 messagebox.showwarning("Check times", f"Can't read: {', '.join(bad)}\nUse e.g. 11:00 PM",
@@ -613,9 +617,12 @@ class SettingsPage:
             z = Inp(b, width=10)
             z.set(st["default_times"][sh][1])
             z.grid(row=i, column=3, padx=10, ipady=3)
+            smart_time_field(a, lambda: {"start": True})
+            smart_time_field(z, lambda a=a: {"after": a.get() or None})
             dt[sh] = (a, z)
 
         def save():
+            fix_times([x for p in dt.values() for x in p])
             bad = [x.get() for p in dt.values() for x in p if x.get().strip() and not norm_time(x.get())]
             if bad:
                 messagebox.showwarning("Check times", f"Can't read: {', '.join(bad)}", parent=self.app)

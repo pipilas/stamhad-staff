@@ -3,6 +3,10 @@
 The release notes shown in the app's update window come from this file:
 the section whose heading matches the version being released.
 
+## 0.8.3
+- Times without AM/PM are guessed sensibly: type 4 for a start and it becomes 4:00 PM (nobody starts at 4 AM). An end time picks the one right after the start: start 5 PM, end 2 means 2:00 AM. Type 4a or 4:00 AM if you really mean the morning
+- Clicking into a search box or any field selects what's already typed, so you can just type over it
+
 ## 0.8.2
 - New name: **NUME**, powered by StamHad. Your data, settings and sign-in stay exactly as they are
 - New logo and app icon

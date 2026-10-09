@@ -55,7 +55,7 @@ for i in $(seq 1 40); do
   OUT=$(curl -s -H "User-Agent: stamhad-publish" "$API/actions/runs?head_sha=$SHA&per_page=5" | python3 -c '
 import json, sys
 try:
-    runs = [r for r in json.load(sys.stdin).get("workflow_runs", []) if r.get("head_branch") == "main"]
+    runs = [r for r in json.load(sys.stdin).get("workflow_runs", []) if r.get("head_branch") == "main" and r.get("name") == "Build & Release"]
 except Exception:
     runs = []
 if not runs: print("waiting"); sys.exit()

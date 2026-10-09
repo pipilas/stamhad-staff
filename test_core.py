@@ -56,3 +56,13 @@ assert abs(sum(v["total"] for v in rr.values()) - 436) < 0.001
 rt = split_shift_tips(EP, 336, 100, pm2, S)["rows"]          # same night by time: earlier/longer gets more
 assert rt["s1"]["floor"] > rt["s2"]["floor"] and rt["t1"]["bar"] > rt["t2"]["bar"]
 print("ALL OK")
+
+# smart AM/PM for typed times
+from core import smart_time as _st
+assert _st("4") == "4:00 PM" and _st("9") == "9:00 AM" and _st("12") == "12:00 PM" and _st("430") == "4:30 PM"
+assert _st("4a") == "4:00 AM" and _st("04:00") == "4:00 AM" and _st("16:00") == "4:00 PM"
+assert _st("11", after="4:00 PM") == "11:00 PM" and _st("2", after="5:00 PM") == "2:00 AM"
+assert _st("4", after="10:00 AM") == "4:00 PM" and _st("12", after="5:00 PM") == "12:00 AM"
+assert _st("4", near="7:00 AM", start=True) == "4:00 PM" and _st("6", near="7:00 AM", start=True) == "6:00 AM"
+assert _st("1", near="11:00 PM") == "1:00 AM" and _st("x") == ""
+print("SMART TIME OK")

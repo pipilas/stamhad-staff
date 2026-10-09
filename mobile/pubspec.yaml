@@ -1,0 +1,33 @@
+name: nume
+description: NUME powered by StamHad - schedules, days off, tips and inventory for restaurant teams.
+publish_to: "none"
+version: 0.2.0+2
+
+environment:
+  sdk: ">=3.6.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  firebase_core: ^4.0.0
+  firebase_auth: ^6.0.0
+  cloud_firestore: ^6.0.0
+  intl: ^0.20.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_launcher_icons: ^0.14.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon_square.png"
+  remove_alpha_ios: true
+  adaptive_icon_background: "#16213A"
+  adaptive_icon_foreground: "assets/icon_foreground.png"

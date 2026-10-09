@@ -14,6 +14,7 @@ on:
   push:
     branches: [main]
     tags: ["v*"]
+    paths-ignore: ["mobile/**", ".github/workflows/mobile.yml", "push_mobile_to_github.command"]
   workflow_dispatch:
 
 permissions:

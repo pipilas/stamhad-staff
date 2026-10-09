@@ -349,6 +349,8 @@ class SchedulePage:
             z = Inp(b, width=9)
             z.set((sl or {}).get("end", dflt[1]))
             z.grid(row=r, column=3, padx=4, ipady=3)
+            smart_time_field(a, lambda d=dflt: {"near": d[0] or None, "start": True})
+            smart_time_field(z, lambda a=a, d=dflt: {"after": a.get() or None, "near": d[1] or None})
             n = Inp(b, width=16)
             n.set((sl or {}).get("note", ""))
             n.grid(row=r, column=4, padx=4, ipady=3)
@@ -360,6 +362,7 @@ class SchedulePage:
                  font=(FONT, 9)).grid(row=len(shifts) + 1, column=0, columnspan=5, sticky="w", pady=(8, 0))
 
         def save():
+            fix_times([w for (v, pc, a, z, n) in rows.values() for w in (a, z)])
             for sh, (v, pc, a, z, n) in rows.items():
                 for w, lbl in ((a, "start"), (z, "end")):
                     if w.get().strip() and not norm_time(w.get()):

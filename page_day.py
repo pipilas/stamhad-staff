@@ -8,7 +8,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from pathlib import Path
 
-from core import (DAYS, SHIFTS, shifts_for_day, norm_time, to_float, auto_hours, eff_hours,
+from core import (DAYS, SHIFTS, shifts_for_day, norm_time, smart_time, to_float, auto_hours, eff_hours,
                   auto_tip_hours, eff_tip_hours, auto_points, eff_points, split_day_tips, day_name, by_time,
                   double_split_time, split_entry, day_shift_name, parse_time as core_parse)
 from quick import quick_add_employee, emp_names, NEW_EMP, pos_values, ensure_position, SEP
@@ -564,9 +564,15 @@ class DayPage:
         self.save()
         self.build() if rebuild else self.recalc()
 
+    def _time_hints(self, e, key):
+        dt = self.s.settings.get("default_times", {}).get(e.get("shift"), ["", ""])
+        if key == "time_out":
+            return {"after": e.get("time_in") or None, "near": dt[1] or None}
+        return {"near": dt[0] or None, "start": True}
+
     def commit_time(self, e, key, w):
         raw = w.get().strip()
-        v = norm_time(raw)
+        v = smart_time(raw, **self._time_hints(e, key))
         if raw and not v:
             self.app.notice.warn(f"Can't read time “{raw}” — use e.g. 4:05 PM")
             w.set(e.get(key, ""))
@@ -846,6 +852,9 @@ class DayPage:
             r["to"] = Inp(g, width=8)
             r["to"].set(e["time_out"])
             r["to"].grid(row=i, column=7, padx=3, ipady=2)
+            smart_time_field(r["ti"], lambda r=r: self._time_hints({"shift": r["shc"].get()}, "time_in"))
+            smart_time_field(r["to"], lambda r=r: self._time_hints({"shift": r["shc"].get(),
+                                                                    "time_in": r["ti"].get()}, "time_out"))
             tk.Label(g, text=f"{e['toast_hours']:.2f}", bg=BG_CARD, fg=FG_SEC).grid(row=i, column=8, padx=3)
             is_double = bool(double_split_time(e, self.day, s.settings))
             r["split"] = tk.BooleanVar(value=is_double)
@@ -895,6 +904,7 @@ class DayPage:
                 e["position"] = r["pc"].get()
                 ensure_position(s, em, e["position"])
                 e["shift"] = r["shc"].get()
+                fix_times([r["ti"], r["to"]])
                 e["time_in"] = norm_time(r["ti"].get())
                 e["time_out"] = norm_time(r["to"].get())
                 at = double_split_time(e, self.day, s.settings) if r["split"].get() else None
